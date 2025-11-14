@@ -1,0 +1,405 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+shopt -s dotglob
+
+perl -mFile::Find /dev/null || {
+  echo "perl is required but not found (https://github.com/rstudio/tinytex/issues/419)" >&2
+  exit 1
+}
+
+OS_NAME="$(uname)"
+readonly OS_NAME
+if [[ "${OS_NAME}" == "Darwin" ]]; then
+  readonly PLATFORM="universal-darwin"
+  readonly EXT="tgz"
+elif [[ "${OS_NAME}" == "Linux" ]]; then
+  readonly PLATFORM="x86_64-linux"
+  readonly EXT="tar.gz"
+else
+  echo "texenv: unsupported OS '${OS_NAME}'" >&2
+  exit 1
+fi
+readonly TEXENV_ROOT="${TEXENV_ROOT:-${HOME}/.texenv}"
+readonly TEXENV_VERSIONS="${TEXENV_ROOT}/versions"
+readonly TEXENV_CONFIG="${TEXENV_ROOT}/config"
+readonly TEXENV_BIN="${TEXENV_ROOT}/bin"
+readonly TEXENV_SHIMS="${TEXENV_ROOT}/shims"
+readonly TEXMF_HOME="${TEXENV_ROOT}/texmf"
+readonly REQUIREMENTS_FILE="tex-require.txt"
+readonly REQUIREMENTS_LOCK_FILE="tex-require.lock"
+declare -a VERSION_INFO
+
+# Resolve current TeX Live version
+resolveVersion() {
+  VERSION_INFO=()
+  local DIR
+  local VERSION
+  local VERSION_PATH
+  DIR="${PWD}"
+  [[ -d "${TEXENV_VERSIONS}" ]] && {
+    if [[ -f "${TEXENV_ROOT}/version" ]]; then
+      VERSION="$(cat "${TEXENV_ROOT}/version")"
+      VERSION_PATH="${TEXENV_ROOT}/version"
+    fi
+    while [[ "${DIR}" != "/" ]]; do
+      if [[ -f "${DIR}/.texenv-version" ]]; then
+        VERSION="$(cat "${DIR}/.texenv-version")"
+        VERSION_PATH="${DIR}/.texenv-version"
+        break
+      fi
+      DIR="$(dirname "${DIR}")"
+    done
+    VERSION_INFO+=("${VERSION}" "${VERSION_PATH}")
+  }
+}
+
+# Execute command in current TeX Live version
+executeRun() {
+  local VERSION
+  local VERSION_PATH
+  local CMD
+  local CMD_PATH
+  [[ -d "${TEXENV_VERSIONS}" ]] && {
+    resolveVersion
+    VERSION="${VERSION_INFO[0]}"
+    VERSION_PATH="${VERSION_INFO[1]}"
+    [[ -z "${VERSION}" || -z "${VERSION_PATH}" ]] && {
+      echo "texenv: no version set (use 'texenv global <version>' or 'texenv local <version>')" >&2
+      exit 1
+    }
+    CMD="${1:-}"; shift || true
+    [[ -z "${CMD}" ]] && {
+      echo "texenv: no command specified" >&2
+      exit 1
+    }
+    CMD_PATH="${TEXENV_VERSIONS}/${VERSION}/bin/${PLATFORM}/${CMD}"
+    [[ -x "${CMD_PATH}" ]] || {
+      echo "texenv: command '${CMD}' not found in version '${VERSION}'" >&2
+      exit 1
+    }
+    export TEXMFHOME="${TEXMF_HOME}"
+    "${CMD_PATH}" "${@}"
+  }
+}
+
+# Initialize texenv environment
+cmdInit() {
+  case "${1:-}" in
+    -)
+      echo "export PATH=\"${TEXENV_BIN}:\${PATH}\""
+      echo "export PATH=\"${TEXENV_SHIMS}:\${PATH}\""
+      exit 0;;
+  esac
+  echo "Initializing texenv environment..."
+  [[ -d "${TEXENV_ROOT}" ]] || mkdir -p "${TEXENV_ROOT}"
+  [[ -d "${TEXENV_VERSIONS}" ]] || mkdir -p "${TEXENV_VERSIONS}"
+  [[ -d "${TEXENV_CONFIG}" ]] || mkdir -p "${TEXENV_CONFIG}"
+  [[ -d "${TEXENV_SHIMS}" ]] || mkdir -p "${TEXENV_SHIMS}"
+  [[ -d "${TEXMF_HOME}" ]] || mkdir -p "${TEXMF_HOME}"
+  [[ -f "${TEXENV_ROOT}/version" ]] || touch "${TEXENV_ROOT}/version"
+  echo "texenv initialized at ${TEXENV_ROOT}"
+}
+
+# Rebuild shims for installed TeX Live versions
+cmdRehash() {
+  rm -rf "${TEXENV_SHIMS:?}"/*
+  find "${TEXENV_VERSIONS}" -path "*/bin/${PLATFORM}/*" ! -type d -print0 \
+    | xargs -0 -I{} basename {} \
+    | sort -u \
+    | while read -r CMD; do
+        local SHIM_PATH="${TEXENV_SHIMS}/${CMD}"
+        {
+          echo "#!/usr/bin/env bash"
+          echo "set -euo pipefail"
+          echo "CMD_PATH=\"\$(cd \"\$(dirname \"\${0}\")\";pwd | sed -e 's/shims/bin/')\""
+          echo "CMD_NAME=\"\$(basename \"\${0}\")\""
+          echo "exec \"\${CMD_PATH}/texenv\" exec \"\${CMD_NAME}\" \"\${@}\""
+        } > "${SHIM_PATH}"
+        chmod +x "${SHIM_PATH}"
+      done
+}
+
+# Install specified TeX Live version
+cmdInstall() {
+  local TEX_DIR
+  local TEX_URL
+  local TEX_TMP
+  local VERSION
+  local VERSION_LIST
+  versionList() {
+    curl -sL "https://api.github.com/repos/rstudio/tinytex-releases/releases" \
+      | awk '/"tag_name"/{gsub(/\"|\"v|\",/, "");print $2}' \
+      | tac
+  }
+  case "${1:-}" in
+    -l|--list)
+      versionList
+      exit 0;;
+    *)
+      VERSION="${1:-}";;
+  esac
+  [[ -d "${TEXENV_ROOT}" && -d "${TEXENV_VERSIONS}" && -d "${TEXENV_CONFIG}" && -d "${TEXENV_SHIMS}" ]] || {
+    echo "texenv: run 'texenv init' first," >&2
+    exit 1
+  }
+  [[ -z "${VERSION}" ]] && {
+    echo "texenv: texenv install <version>" >&2
+    exit 1
+  }
+  VERSION_LIST="$(versionList)"
+  grep -qxF "${VERSION}" <<<"${VERSION_LIST}" || {
+    echo "texenv: version '${VERSION}' is not available" >&2
+    exit 1
+  }
+  TEX_DIR="${TEXENV_VERSIONS}/${VERSION}"
+  if [[ "${VERSION}" == "daily" ]]; then
+    TEX_URL="https://github.com/rstudio/tinytex-releases/releases/download/daily/TinyTeX-1.${EXT}"
+  else
+    TEX_URL="https://github.com/rstudio/tinytex-releases/releases/download/v${VERSION}/TinyTeX-1-v${VERSION}.${EXT}"
+  fi
+  TEX_TMP="$(mktemp /tmp/TinyTeX.XXXXXX.${EXT})"
+  [[ -d "${TEX_DIR}" ]] && {
+    echo "texenv: version ${VERSION} is already installed" >&2
+    exit 1
+  }
+  {
+    echo "Installing TeX Live version ${VERSION}..."
+    mkdir -p "${TEX_DIR}"
+    curl -L -f --retry 10 --retry-delay 30 -# "${TEX_URL}" -o "${TEX_TMP}"
+    tar xf "${TEX_TMP}" -C "${TEX_DIR}" --strip-components=1
+    rm -rf "${TEX_TMP}"
+    cmdRehash
+    echo "TeX Live version ${VERSION} installed successfully."
+  } || {
+    rm -rf "${TEX_DIR:?}"
+    rm -rf "${TEX_TMP:?}"
+    echo "texenv: failed to install version ${VERSION}" >&2
+    exit 1
+  }
+}
+
+# Uninstall specified TeX Live version
+cmdUninstall() {
+  local VERSION
+  VERSION="${1:-}"
+  [[ -d "${TEXENV_ROOT}" && -d "${TEXENV_VERSIONS}" && -d "${TEXENV_CONFIG}" && -d "${TEXENV_SHIMS}" ]] || {
+    echo "texenv: run 'texenv init' first," >&2
+    exit 1
+  }
+  [[ -z "${VERSION}" ]] && {
+    echo "USAGE: texenv uninstall <version>" >&2
+    exit 1
+  }
+  [[ -d "${TEXENV_VERSIONS}/${VERSION}" ]] || {
+    echo "texenv: version ${VERSION} is not installed" >&2
+    exit 1
+  }
+  {
+    echo "Uninstalling version ${VERSION}..."
+    rm -rf "${TEXENV_VERSIONS}/${VERSION:?}"
+    cmdRehash
+    echo "TeX Live version ${VERSION} uninstalled successfully."
+  } || {
+    echo "texenv: failed to uninstall version ${VERSION}" >&2
+    exit 1
+  }
+}
+
+# Show current TeX Live version
+cmdVersion() {
+  local VERSION
+  local VERSION_PATH
+  if [[ -d "${TEXENV_VERSIONS}" ]]; then
+    resolveVersion
+    VERSION="${VERSION_INFO[0]}"
+    VERSION_PATH="${VERSION_INFO[1]}"
+    [[ -z "${VERSION}" || -z "${VERSION_PATH}" ]] && {
+      echo "texenv: no version set (use 'texenv global <version>' or 'texenv local <version>')" >&2
+      exit 1
+    }
+    echo "${VERSION} (set by ${VERSION_PATH})"
+  else
+    echo "texenv: no version set (use 'texenv global <version>' or 'texenv local <version>')" >&2
+    exit 1
+  fi
+}
+
+# List installed TeX Live versions
+cmdVersions() {
+  local VERSION
+  local VERSION_PATH
+  if [[ -d "${TEXENV_VERSIONS}" ]]; then
+    resolveVersion
+    VERSION="${VERSION_INFO[0]}"
+    VERSION_PATH="${VERSION_INFO[1]}"
+    find "${TEXENV_VERSIONS}" -maxdepth 1 ! -name "$(basename "${TEXENV_VERSIONS}")" -print0 \
+      | xargs -0 -I{} basename {} \
+      | awk -v ver="${VERSION}" -v ver_path="${VERSION_PATH}" '{
+        if ($1 == ver) {
+          printf("* %s (set by %s)\n", $1, ver_path)
+        } else {
+          printf("  %s\n", $1)
+        }
+      }'
+  else
+    echo "texenv: no versions installed" >&2
+    exit 1
+  fi
+}
+
+# Set global TeX Live version
+cmdGlobal() {
+  local VERSION
+  VERSION="${1:-}"
+  [[ -z "${VERSION}" ]] && {
+    echo "USAGE: texenv global <version>" >&2
+    exit 1
+  }
+  [[ -d "${TEXENV_VERSIONS}/${VERSION}" ]] || {
+    echo "texenv: version ${VERSION} is not installed" >&2
+    exit 1
+  }
+  echo "${VERSION}" > "${TEXENV_ROOT}/version"
+}
+
+# Set local TeX Live version
+cmdLocal() {
+  local VERSION
+  VERSION="${1:-}"
+  [[ -z "${VERSION}" ]] && {
+    echo "USAGE: texenv local <version>" >&2
+    exit 1
+  }
+  [[ -d "${TEXENV_VERSIONS}/${VERSION}" ]] || {
+    echo "texenv: version ${VERSION} is not installed" >&2
+    exit 1
+  }
+  echo "${VERSION}" > "$(pwd)/.texenv-version"
+}
+
+# Manage tlmgr repository
+cmdRepo() {
+  local REPO
+  local VERSION
+  local CURRENT_REPO
+  local CURRENT_YEAR
+  case "${1:-}" in
+    -s|--show)
+      executeRun tlmgr option repository | awk -F": " '{print $2}'
+      exit 0;;
+  esac
+  REPO="https://ctan.math.illinois.edu/systems/texlive/tlnet"
+  VERSION="$(executeRun tlmgr --version | awk 'END{print $5}')"
+  CURRENT_REPO="$(executeRun tlmgr option repository | awk -F": " '{print $2}')"
+  CURRENT_YEAR="$(date +%Y)"
+  if [[ "${VERSION}" == "${CURRENT_YEAR}"  ]]; then
+    [[ "${REPO}" == "${CURRENT_REPO}"  ]] && {
+      echo "texenv: Repository is already set to the latest TeX Live repository."
+      return 0
+    }
+  else
+    REPO="https://ftp.math.utah.edu/pub/tex/historic/systems/texlive/${VERSION}/tlnet-final"
+  fi
+  {
+    echo "texenv: Setting tlmgr repository to ${REPO}..."
+    executeRun tlmgr option repository "${REPO}"
+  } || {
+    echo "texenv: failed to set tlmgr repository" >&2
+    exit 1
+  }
+}
+
+# Execute command in current TeX Live version
+cmdExec(){
+  [[ "${1:-}" == "tlmgr" ]] && cmdRepo > /dev/null
+  executeRun "${@}"
+}
+
+# Freeze TeX packages to requirements file
+cmdFreeze() {
+  local FILE
+  local TEX_VERSION
+  cmdVersion > /dev/null
+  FILE="${REQUIREMENTS_FILE}"
+  case "${1:-}" in
+    -l|--lock)
+      FILE="${REQUIREMENTS_LOCK_FILE}"
+      TEX_VERSION="$(cmdExec tlmgr --version | awk 'END{print $5}')";;
+  esac
+  echo "Freezing TeX packages to ${FILE}..."
+  cat <([[ -z "${TEX_VERSION:-}" ]] || echo "# TeX Live: ${TEX_VERSION}") <(cmdExec tlmgr info --only-installed --data name) > "${FILE}"
+}
+
+# Restore TeX packages from requirements file
+cmdRestore() {
+  local FILE_NAME
+  local TEX_VERSION
+  local LOCK_TEX_VERSION
+  if [[ -f "${REQUIREMENTS_LOCK_FILE}" ]]; then
+    FILE_NAME="${REQUIREMENTS_LOCK_FILE}"
+  elif [[ -f "${REQUIREMENTS_FILE}" ]]; then
+    FILE_NAME="${REQUIREMENTS_FILE}"
+  else
+    echo "texenv: no requirements file found" >&2
+    exit 1
+  fi
+  TEX_VERSION="$(cmdExec tlmgr --version | awk 'END{print $5}')"
+  LOCK_TEX_VERSION="$(awk -F ": " 'NR=1{print $2}' "${FILE_NAME}")"
+  (( "${TEX_VERSION}" < "${LOCK_TEX_VERSION}" )) && {
+    echo "texenv: TeX Live version ${TEX_VERSION} is older than the required version ${LOCK_TEX_VERSION}" >&2
+    exit 1
+  }
+  {
+    echo "Restoring TeX packages from ${FILE_NAME}..."
+    cmdExec tlmgr install $(awk 'NR>1{print $0}' <"${FILE_NAME}" | tr '\n' ' ')
+    cmdRehash
+  } || {
+    echo "texenv: failed to restore TeX packages" >&2
+    exit 1
+  }
+}
+
+# Display help message
+cmdHelp() {
+  cat <<EOF
+USAGE: ${0##*/} <command> [<args>]
+Commands:
+  init                Initialize ${0##*/} environment
+  install <version>   Install specified TeX Live version
+  uninstall <version> Uninstall specified TeX Live version
+  version             Show current TeX Live version
+  versions            List installed TeX Live versions
+  global <version>    Set global TeX Live version
+  local <version>     Set local TeX Live version
+  repo [options]      Manage tlmgr repository
+  exec <cmd> [args]   Execute command in current TeX Live version
+  rehash              Rebuild shims for installed TeX Live versions
+  freeze [options]    Freeze installed TeX packages to requirements file
+  restore             Restore TeX packages from requirements file
+  help                Show this help message
+EOF
+  exit 0
+}
+
+cmd="${1:-}"; shift || true
+
+case "${cmd:-}" in
+  init) cmdInit "${@}";;
+  install) cmdInstall "${@}";;
+  uninstall) cmdUninstall "${@}";;
+  version) cmdVersion;;
+  versions) cmdVersions;;
+  global) cmdGlobal "${@}";;
+  local) cmdLocal "${@}";;
+  repo) cmdRepo "${@}";;
+  exec) cmdExec "${@}";;
+  rehash) cmdRehash;;
+  freeze) cmdFreeze "${@}";;
+  restore) cmdRestore;;
+  help|--help|-h) cmdHelp;;
+  *)
+    [[ ! -z "${cmd}" ]] && echo "texenv: unknown command '${cmd}'" >&2
+    echo "Run 'texenv help' for usage." >&2
+    exit 1;;
+esac
