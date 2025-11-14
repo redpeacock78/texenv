@@ -262,7 +262,7 @@ cmdGlobal() {
     echo "texenv: version ${VERSION} is not installed" >&2
     exit 1
   }
-  echo "${VERSION}" > "${TEXENV_ROOT}/version"
+  echo "${VERSION}" > "${TEXENV_ROOT}/${TEX_GLOBAL_VERSION_FILE}"
 }
 
 # Set local TeX Live version
@@ -277,7 +277,7 @@ cmdLocal() {
     echo "texenv: version ${VERSION} is not installed" >&2
     exit 1
   }
-  echo "${VERSION}" > "$(pwd)/.texenv-version"
+  echo "${VERSION}" > "$(pwd)/${TEX_LOCAL_VERSION_FILE}"
 }
 
 # Manage tlmgr repository
