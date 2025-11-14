@@ -26,6 +26,8 @@ readonly TEXENV_CONFIG="${TEXENV_ROOT}/config"
 readonly TEXENV_BIN="${TEXENV_ROOT}/bin"
 readonly TEXENV_SHIMS="${TEXENV_ROOT}/shims"
 readonly TEXMF_HOME="${TEXENV_ROOT}/texmf"
+readonly TEX_GLOBAL_VERSION_FILE="version"
+readonly TEX_LOCAL_VERSION_FILE=".tex-version"
 readonly REQUIREMENTS_FILE="tex-require.txt"
 readonly REQUIREMENTS_LOCK_FILE="tex-require.lock"
 declare -a VERSION_INFO
@@ -38,14 +40,14 @@ resolveVersion() {
   local VERSION_PATH
   DIR="${PWD}"
   [[ -d "${TEXENV_VERSIONS}" ]] && {
-    if [[ -f "${TEXENV_ROOT}/version" ]]; then
-      VERSION="$(cat "${TEXENV_ROOT}/version")"
-      VERSION_PATH="${TEXENV_ROOT}/version"
+    if [[ -f "${TEXENV_ROOT}/${TEX_GLOBAL_VERSION_FILE}" ]]; then
+      VERSION="$(cat "${TEXENV_ROOT}/${TEX_GLOBAL_VERSION_FILE}")"
+      VERSION_PATH="${TEXENV_ROOT}/${TEX_GLOBAL_VERSION_FILE}"
     fi
     while [[ "${DIR}" != "/" ]]; do
-      if [[ -f "${DIR}/.texenv-version" ]]; then
-        VERSION="$(cat "${DIR}/.texenv-version")"
-        VERSION_PATH="${DIR}/.texenv-version"
+      if [[ -f "${DIR}/${TEX_LOCAL_VERSION_FILE}" ]]; then
+        VERSION="$(cat "${DIR}/${TEX_LOCAL_VERSION_FILE}")"
+        VERSION_PATH="${DIR}/${TEX_LOCAL_VERSION_FILE}"
         break
       fi
       DIR="$(dirname "${DIR}")"
