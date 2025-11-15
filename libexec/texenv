@@ -162,7 +162,7 @@ cmdInstall() {
     echo "texenv: version '${VERSION}' is not available" >&2
     exit 1
   }
-  TEX_DIR="${TEXENV_VERSIONS}/${VERSION}"
+  TEX_DIR="${TEXENV_VERSIONS}/${VERSION/daily/$(date +%Y.%m.%d)}"
   if [[ "${VERSION}" == "daily" ]]; then
     TEX_URL="https://github.com/rstudio/tinytex-releases/releases/download/daily/TinyTeX-1.${EXT}"
   else
@@ -243,15 +243,15 @@ cmdVersions() {
     resolveVersion
     VERSION="${VERSION_INFO[0]}"
     VERSION_PATH="${VERSION_INFO[1]}"
-    find "${TEXENV_VERSIONS}" -maxdepth 1 ! -name "$(basename "${TEXENV_VERSIONS}")" -print0 \
-      | xargs -0 -I{} basename {} \
-      | awk -v ver="${VERSION}" -v ver_path="${VERSION_PATH}" '{
-        if ($1 == ver) {
-          printf("* %s (set by %s)\n", $1, ver_path)
-        } else {
-          printf("  %s\n", $1)
-        }
-      }'
+    find "${TEXENV_VERSIONS}" -maxdepth 1 ! -name "${TEXENV_VERSIONS##*/}" \
+      | sort \
+      | awk -F/ -v ver="${VERSION}" -v ver_path="${VERSION_PATH}" '{
+          if ($NF == ver) {
+            printf("* %s (set by %s)\n", $NF, ver_path)
+          } else {
+            printf("  %s\n", $NF)
+          }
+        }'
   else
     echo "texenv: no versions installed" >&2
     exit 1
@@ -299,8 +299,9 @@ cmdRepo() {
       executeRun tlmgr option repository | awk -F": " '{print $2}'
       exit 0;;
   esac
+  resolveVersion
   REPO="https://ctan.math.illinois.edu/systems/texlive/tlnet"
-  VERSION="$(executeRun tlmgr --version | awk 'END{print $5}')"
+  VERSION="${VERSION_INFO[0]%%.*}"
   CURRENT_REPO="$(executeRun tlmgr option repository | awk -F": " '{print $2}')"
   CURRENT_YEAR="$(date +%Y)"
   if [[ "${VERSION}" == "${CURRENT_YEAR}"  ]]; then
