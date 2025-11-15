@@ -50,7 +50,8 @@ resolveVersion() {
         VERSION_PATH="${DIR}/${TEX_LOCAL_VERSION_FILE}"
         break
       fi
-      DIR="$(dirname "${DIR}")"
+      DIR="${DIR%/*}"
+      [[ -z "${DIR}" ]] && break
     done
     VERSION_INFO+=("${VERSION}" "${VERSION_PATH}")
   }
@@ -105,21 +106,28 @@ cmdInit() {
 
 # Rebuild shims for installed TeX Live versions
 cmdRehash() {
-  rm -rf "${TEXENV_SHIMS:?}"/*
-  find "${TEXENV_VERSIONS}" -path "*/bin/${PLATFORM}/*" ! -type d -print0 \
-    | xargs -0 -I{} basename {} \
-    | sort -u \
-    | while read -r CMD; do
-        local SHIM_PATH="${TEXENV_SHIMS}/${CMD}"
-        {
-          echo "#!/usr/bin/env bash"
-          echo "set -euo pipefail"
-          echo "CMD_PATH=\"\$(cd \"\$(dirname \"\${0}\")\";pwd | sed -e 's/shims/bin/')\""
-          echo "CMD_NAME=\"\$(basename \"\${0}\")\""
-          echo "exec \"\${CMD_PATH}/texenv\" exec \"\${CMD_NAME}\" \"\${@}\""
-        } > "${SHIM_PATH}"
-        chmod +x "${SHIM_PATH}"
-      done
+  {
+    rm -rf "${TEXENV_SHIMS:?}"/*
+    find "${TEXENV_VERSIONS}" -path "*/bin/${PLATFORM}/*" ! -type d \
+      | awk -F/ '!a[$NF]++{print $NF}' \
+      | while read -r CMD; do
+          local SHIM_PATH="${TEXENV_SHIMS}/${CMD}"
+          {
+            builtin echo "#!/usr/bin/env bash"
+            builtin echo "set -euo pipefail"
+            builtin echo "shim() {"
+            builtin echo "  local readonly CMD_PATH=\"\$(builtin cd \"\${0%/*}\" && builtin echo \"\${PWD/shims/bin}\")\""
+            builtin echo "  local readonly CMD_NAME=\"\${0##*/}\""
+            builtin echo "  exec \"\${CMD_PATH}/texenv\" exec \"\${CMD_NAME}\" \"\${@}\""
+            builtin echo "}"
+            builtin echo "shim \"\${@}\""
+          } > "${SHIM_PATH}"
+          chmod +x "${SHIM_PATH}"
+        done
+  } || {
+    echo "texenv: failed to rehash shims" >&2
+    exit 1
+  }
 }
 
 # Install specified TeX Live version
@@ -314,7 +322,12 @@ cmdRepo() {
 
 # Execute command in current TeX Live version
 cmdExec(){
-  [[ "${1:-}" == "tlmgr" ]] && cmdRepo > /dev/null
+  if [[ "${1:-}" == "tlmgr" ]]; then
+    case "${2:-}" in
+      install|update|info|search)
+        cmdRepo > /dev/null;;
+    esac
+  fi
   executeRun "${@}"
 }
 
