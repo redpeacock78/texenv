@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+[[ "${TEXENV_DEBUG}" == 1 ]] && set -x
 set -euo pipefail
 shopt -s dotglob
 
@@ -82,7 +83,7 @@ executeRun() {
       exit 1
     }
     export TEXMFHOME="${TEXMF_HOME}"
-    "${CMD_PATH}" "${@}"
+    exec "${CMD_PATH}" "${@}"
   }
 }
 
@@ -114,6 +115,7 @@ cmdRehash() {
           local SHIM_PATH="${TEXENV_SHIMS}/${CMD}"
           {
             builtin echo "#!/usr/bin/env bash"
+            builtin echo "[[ \"\${TEXENV_DEBUG}\" == 1 ]] && set -x"
             builtin echo "set -euo pipefail"
             builtin echo "shim() {"
             builtin echo "  declare -r CMD_PATH=\"\$(builtin cd \"\${0%/*}\" && builtin echo \"\${PWD/shims/bin}\")\""
