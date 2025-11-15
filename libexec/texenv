@@ -360,8 +360,9 @@ cmdRestore() {
     echo "texenv: no requirements file found" >&2
     exit 1
   fi
-  TEX_VERSION="$(cmdExec tlmgr --version | awk 'END{print $5}')"
-  LOCK_TEX_VERSION="$(awk -F ": " 'NR=1{print $2}' "${FILE_NAME}")"
+  resolveVersion
+  TEX_VERSION="${VERSION_INFO[0]%%.*}"
+  LOCK_TEX_VERSION="$(awk -F ": " 'NR==1{print $2}' "${FILE_NAME}")"
   (( "${TEX_VERSION}" < "${LOCK_TEX_VERSION}" )) && {
     echo "texenv: TeX Live version ${TEX_VERSION} is older than the required version ${LOCK_TEX_VERSION}" >&2
     exit 1
