@@ -139,8 +139,8 @@ cmdInstall() {
   local VERSION_LIST
   versionList() {
     curl -sL "https://api.github.com/repos/rstudio/tinytex-releases/releases" \
-      | awk '/"tag_name"/{gsub(/\"|\"v|\",/, "");print $2}' \
-      | tac
+      | awk '/"tag_name"/{gsub(/\"|\"v|\",/, "");print $2}'  \
+      | awk '{a[NR]=$0}END{for(i=NR;i>0;i--){print a[i]}}'
   }
   case "${1:-}" in
     -l|--list)
