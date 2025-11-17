@@ -96,14 +96,19 @@ cmdInit() {
       echo "export PATH=\"${TEXENV_SHIMS}:\${PATH}\""
       exit 0;;
   esac
+  {
   echo "Initializing texenv environment..."
-  [[ -d "${TEXENV_ROOT}" ]] || mkdir -p "${TEXENV_ROOT}"
-  [[ -d "${TEXENV_VERSIONS}" ]] || mkdir -p "${TEXENV_VERSIONS}"
-  [[ -d "${TEXENV_CONFIG}" ]] || mkdir -p "${TEXENV_CONFIG}"
-  [[ -d "${TEXENV_SHIMS}" ]] || mkdir -p "${TEXENV_SHIMS}"
-  [[ -d "${TEXMF_HOME}" ]] || mkdir -p "${TEXMF_HOME}"
-  [[ -f "${TEXENV_ROOT}/version" ]] || touch "${TEXENV_ROOT}/version"
-  echo "texenv initialized at ${TEXENV_ROOT}"
+    [[ -d "${TEXENV_ROOT}" ]] || mkdir -p "${TEXENV_ROOT}"
+    [[ -d "${TEXENV_VERSIONS}" ]] || mkdir -p "${TEXENV_VERSIONS}"
+    [[ -d "${TEXENV_CONFIG}" ]] || mkdir -p "${TEXENV_CONFIG}"
+    [[ -d "${TEXENV_SHIMS}" ]] || mkdir -p "${TEXENV_SHIMS}"
+    [[ -d "${TEXMF_HOME}" ]] || mkdir -p "${TEXMF_HOME}"
+    [[ -f "${TEXENV_ROOT}/version" ]] || touch "${TEXENV_ROOT}/version"
+    echo "texenv initialized at ${TEXENV_ROOT}"
+  } || {
+    echo "texenv: failed to initialize" >&2
+    exit 1
+  }
 }
 
 # Rebuild shims for installed TeX Live versions
@@ -246,7 +251,7 @@ cmdVersions() {
     resolveVersion
     VERSION="${VERSION_INFO[0]}"
     VERSION_PATH="${VERSION_INFO[1]}"
-    find "${TEXENV_VERSIONS}" -maxdepth 1 ! -name "${TEXENV_VERSIONS##*/}" \
+    find "${TEXENV_VERSIONS}" -maxdepth 1 ! -name "${TEXENV_VERSIONS##*/}" -type d \
       | sort \
       | awk -F/ -v ver="${VERSION}" -v ver_path="${VERSION_PATH}" '{
           if ($NF == ver) {
@@ -273,7 +278,12 @@ cmdGlobal() {
     echo "texenv: version ${VERSION} is not installed" >&2
     exit 1
   }
-  echo "${VERSION}" > "${TEXENV_ROOT}/${TEX_GLOBAL_VERSION_FILE}"
+  {
+    echo "${VERSION}" > "${TEXENV_ROOT}/${TEX_GLOBAL_VERSION_FILE}"
+  } || {
+    echo "texenv: failed to set global version" >&2
+    exit 1
+  }
 }
 
 # Set local TeX Live version
@@ -288,7 +298,12 @@ cmdLocal() {
     echo "texenv: version ${VERSION} is not installed" >&2
     exit 1
   }
-  echo "${VERSION}" > "$(pwd)/${TEX_LOCAL_VERSION_FILE}"
+  {
+    echo "${VERSION}" > "$(pwd)/${TEX_LOCAL_VERSION_FILE}"
+  } || {
+    echo "texenv: failed to set local version" >&2
+    exit 1
+  }
 }
 
 # Manage tlmgr repository
@@ -356,8 +371,13 @@ cmdFreeze() {
       FILE="${REQUIREMENTS_LOCK_FILE}"
       TEX_VERSION="$(cmdExec tlmgr --version | awk 'END{print $5}')";;
   esac
-  echo "Freezing TeX packages to ${FILE}..."
-  cat <([[ -z "${TEX_VERSION:-}" ]] || echo "# TeX Live: ${TEX_VERSION}") <(cmdExec tlmgr info --only-installed --data name) > "${FILE}"
+  {
+    echo "Freezing TeX packages to ${FILE}..."
+    cat <([[ -z "${TEX_VERSION:-}" ]] || echo "# TeX Live: ${TEX_VERSION}") <(cmdExec tlmgr info --only-installed --data name) > "${FILE}"
+  } || {
+    echo "texenv: failed to freeze TeX packages" >&2
+    exit 1
+  }
 }
 
 # Restore TeX packages from requirements file
