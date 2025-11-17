@@ -72,7 +72,8 @@ executeRun() {
       echo "texenv: no version set (use 'texenv global <version>' or 'texenv local <version>')" >&2
       exit 1
     }
-    CMD="${1:-}"; shift || true
+    CMD="${1:-}"
+    shift || true
     [[ -z "${CMD}" ]] && {
       echo "texenv: no command specified" >&2
       exit 1
@@ -411,24 +412,29 @@ EOF
   exit 0
 }
 
-cmd="${1:-}"; shift || true
 
-case "${cmd:-}" in
-  init) cmdInit "${@}";;
-  install) cmdInstall "${@}";;
-  uninstall) cmdUninstall "${@}";;
-  version) cmdVersion;;
-  versions) cmdVersions;;
-  global) cmdGlobal "${@}";;
-  local) cmdLocal "${@}";;
-  repo) cmdRepo "${@}";;
-  exec) cmdExec "${@}";;
-  rehash) cmdRehash;;
-  freeze) cmdFreeze "${@}";;
-  restore) cmdRestore;;
-  help|--help|-h) cmdHelp;;
-  *)
-    [[ ! -z "${cmd}" ]] && echo "texenv: unknown command '${cmd}'" >&2
-    echo "Run 'texenv help' for usage." >&2
-    exit 1;;
-esac
+main() {
+  CMD="${1:-}"
+  shift || true
+  case "${CMD:-}" in
+    init) cmdInit "${@}";;
+    install) cmdInstall "${@}";;
+    uninstall) cmdUninstall "${@}";;
+    version) cmdVersion;;
+    versions) cmdVersions;;
+    global) cmdGlobal "${@}";;
+    local) cmdLocal "${@}";;
+    repo) cmdRepo "${@}";;
+    exec) cmdExec "${@}";;
+    rehash) cmdRehash;;
+    freeze) cmdFreeze "${@}";;
+    restore) cmdRestore;;
+    help|-h|--help) cmdHelp;;
+    *)
+      [[ ! -z "${CMD}" ]] && echo "texenv: unknown command '${CMD}'" >&2
+      echo "Run 'texenv help' for usage." >&2
+      exit 1;;
+  esac
+}
+
+main "${@}"
