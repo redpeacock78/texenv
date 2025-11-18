@@ -194,7 +194,7 @@ cmdInstall() {
     echo "texenv: texenv install [options] <version>" >&2
     exit 1
   }
-  TEX_DIR="${TEXENV_VERSIONS}/${VERSION/daily/$(date +%Y.%m.%d)}"
+  TEX_DIR="${TEXENV_VERSIONS}/${VERSION/daily/daily-$(date +%Y.%m.%d)}"
   [[ -d "${TEX_DIR}" && "${FORCE_INSTALL:-0}" != 1 ]] && {
     echo "texenv: version ${VERSION} is already installed" >&2
     exit 1
