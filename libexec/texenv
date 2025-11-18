@@ -191,22 +191,22 @@ cmdInstall() {
     echo "texenv: texenv install [options] <version>" >&2
     exit 1
   }
+  TEX_DIR="${TEXENV_VERSIONS}/${VERSION/daily/$(date +%Y.%m.%d)}"
+  [[ -d "${TEX_DIR}" && "${FORCE_INSTALL:-0}" != 1 ]] && {
+    echo "texenv: version ${VERSION} is already installed" >&2
+    exit 1
+  }
   VERSION_LIST="$(versionList)"
   grep -qxF "${VERSION}" <<< "${VERSION_LIST}" || {
     echo "texenv: version '${VERSION}' is not available" >&2
     exit 1
   }
-  TEX_DIR="${TEXENV_VERSIONS}/${VERSION/daily/$(date +%Y.%m.%d)}"
   if [[ "${VERSION}" == "daily" ]]; then
     TEX_URL="https://github.com/rstudio/tinytex-releases/releases/download/daily/TinyTeX-1.${EXT}"
   else
     TEX_URL="https://github.com/rstudio/tinytex-releases/releases/download/v${VERSION}/TinyTeX-1-v${VERSION}.${EXT}"
   fi
   TEX_TMP="$(mktemp /tmp/TinyTeX.XXXXXX.${EXT})"
-  [[ -d "${TEX_DIR}" && "${FORCE_INSTALL:-0}" != 1 ]] && {
-    echo "texenv: version ${VERSION} is already installed" >&2
-    exit 1
-  }
   {
     echo "Installing TeX Live version ${VERSION}..." &&
       [[ "${FORCE_INSTALL:-0}" == 1 ]] && {
