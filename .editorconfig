@@ -1,0 +1,9 @@
+root = true
+
+[libexec/**]
+charset = utf-8
+indent_style = space
+indent_size = 2
+end_of_line = lf
+switch_case_indent = true
+space_redirects = true
