@@ -578,6 +578,10 @@ cmdWhere() {
   }
   resolveVersion
   VERSION="${VERSION_INFO[0]}"
+  [[ -z "${VERSION}" ]] && {
+    echo "texenv: no version set (use 'texenv global <version>' or 'texenv local <version>')" >&2
+    exit 1
+  }
   CMD_PATH="${TEXENV_VERSIONS}/${VERSION}/bin/${PLATFORM}/${CMD_NAME}"
   [[ -x "${CMD_PATH}" ]] || {
     echo "texenv: command '${CMD_NAME}' not found in version '${VERSION}'" >&2
@@ -601,6 +605,14 @@ cmdWhence() {
       ;;
   esac
   CMD_NAME="${1:-}"
+  [[ -z "${CMD_NAME}" ]] && {
+    echo "texenv: no command specified" >&2
+    exit 1
+  }
+  [[ ! -d "${TEXENV_VERSIONS}" ]] && {
+    echo "texenv: no versions installed" >&2
+    exit 1
+  }
   RESULT="$(find "${TEXENV_VERSIONS}" -path "*/bin/${PLATFORM}/${CMD_NAME}" ! -type d -exec test -e {} \; -print)"
   [[ -z "${RESULT}" ]] && {
     echo "texenv: command '${CMD_NAME}' not found" >&2
