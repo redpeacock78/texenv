@@ -531,6 +531,85 @@ cmdRestore() {
   }
 }
 
+# Show path to shim for specified command
+cmdWhich() {
+  declare CMD_NAME
+  declare CMD_PATH
+  case "${1:-}" in
+    -h | --help)
+      echo "Usage: ${0##*/} which <cmd>"
+      echo "Show path to shim for specified command"
+      echo "Options:"
+      echo "  -h, --help  Show this help message"
+      exit 0
+      ;;
+  esac
+  CMD_NAME="${1:-}"
+  [[ -z "${CMD_NAME}" ]] && {
+    echo "texenv: no command specified" >&2
+    exit 1
+  }
+  CMD_PATH="${TEXENV_SHIMS}/${CMD_NAME}"
+  [[ -x "${CMD_PATH}" ]] || {
+    echo "texenv: command '${CMD_NAME}' not found" >&2
+    exit 1
+  }
+  echo "${CMD_PATH}"
+}
+
+# Show path to command for specified command
+cmdWhere() {
+  declare CMD_NAME
+  declare CMD_PATH
+  declare VERSION
+  case "${1:-}" in
+    -h | --help)
+      echo "Usage: ${0##*/} where <cmd>"
+      echo "Show path to command in current TeX Live version"
+      echo "Options:"
+      echo "  -h, --help  Show this help message"
+      exit 0
+      ;;
+  esac
+  CMD_NAME="${1:-}"
+  [[ -z "${CMD_NAME}" ]] && {
+    echo "texenv: no command specified" >&2
+    exit 1
+  }
+  resolveVersion
+  VERSION="${VERSION_INFO[0]}"
+  CMD_PATH="${TEXENV_VERSIONS}/${VERSION}/bin/${PLATFORM}/${CMD_NAME}"
+  [[ -x "${CMD_PATH}" ]] || {
+    echo "texenv: command '${CMD_NAME}' not found in version '${VERSION}'" >&2
+    exit 1
+  }
+  echo "${CMD_PATH}"
+}
+
+# Show path to command in all installed TeX Live versions
+cmdWhence() {
+  declare CMD_NAME
+  declare CMD_PATH
+  declare RESULT
+  case "${1:-}" in
+    -h | --help)
+      echo "Usage: ${0##*/} whence <cmd>"
+      echo "Show path to command in all installed TeX Live versions"
+      echo "Options:"
+      echo "  -h, --help  Show this help message"
+      exit 0
+      ;;
+  esac
+  CMD_NAME="${1:-}"
+  RESULT="$(find "${TEXENV_VERSIONS}" -path "*/bin/${PLATFORM}/${CMD_NAME}" ! -type d -exec test -e {} \; -print)"
+  [[ -z "${RESULT}" ]] && {
+    echo "texenv: command '${CMD_NAME}' not found" >&2
+    exit 1
+  }
+  sort <<< "${RESULT}" |
+    awk -F/ '{print $(NF-3) " => " $0}'
+}
+
 # Display help message
 cmdHelp() {
   cat << EOF
@@ -548,6 +627,9 @@ Commands:
   rehash              Rebuild shims for installed TeX Live versions
   freeze [options]    Freeze installed TeX packages to requirements file
   restore             Restore TeX packages from requirements file
+  which <cmd>         Show path to shim for specified command
+  where <cmd>         Show path to command in current TeX Live version
+  whence <cmd>        Show path to command in all installed TeX Live versions
   help                Show this help message
 EOF
   exit 0
@@ -569,6 +651,9 @@ main() {
     rehash) cmdRehash ;;
     freeze) cmdFreeze "${@}" ;;
     restore) cmdRestore "${@}" ;;
+    which) cmdWhich "${@}" ;;
+    where) cmdWhere "${@}" ;;
+    whence) cmdWhence "${@}" ;;
     help | -h | --help) cmdHelp ;;
     *)
       [[ ! -z "${CMD}" ]] && echo "texenv: unknown command '${CMD}'" >&2
