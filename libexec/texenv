@@ -64,7 +64,7 @@ executeRun() {
   declare VERSION_PATH
   declare CMD
   declare CMD_PATH
-  [[ -d "${TEXENV_VERSIONS}" ]] && {
+  if [[ -d "${TEXENV_VERSIONS}" ]]; then
     resolveVersion
     VERSION="${VERSION_INFO[0]}"
     VERSION_PATH="${VERSION_INFO[1]}"
@@ -85,7 +85,10 @@ executeRun() {
     }
     export TEXMFHOME="${TEXMF_HOME}"
     "${CMD_PATH}" "${@}"
-  }
+  else
+    echo "texenv: no version set (use 'texenv global <version>' or 'texenv local <version>')" >&2
+    exit 1
+  fi
 }
 
 # Initialize texenv environment
