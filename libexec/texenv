@@ -517,7 +517,7 @@ cmdRestore() {
   resolveVersion
   TEX_VERSION="${VERSION_INFO[0]%%.*}"
   LOCK_TEX_VERSION="$(awk -F ": " 'NR==1{print $2}' "${FILE_NAME}")"
-  (("${TEX_VERSION}" < "${LOCK_TEX_VERSION}")) && {
+  [[ ! -z "${LOCK_TEX_VERSION:-}" ]] && (("${TEX_VERSION}" < "${LOCK_TEX_VERSION}")) && {
     echo "texenv: TeX Live version ${TEX_VERSION} is older than the required version ${LOCK_TEX_VERSION}" >&2
     exit 1
   }
