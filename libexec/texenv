@@ -127,7 +127,7 @@ cmdRehash() {
       find "${TEXENV_VERSIONS}" -path "*/bin/${PLATFORM}/*" ! -type d -exec test -e {} \; -print |
       awk -F/ '!a[$NF]++{print $NF}' |
         while read -r CMD; do
-          declare -r SHIM_PATH="${TEXENV_SHIMS}/${CMD}"
+          declare SHIM_PATH="${TEXENV_SHIMS}/${CMD}"
           {
             builtin echo "#!/usr/bin/env bash"
             builtin echo "[[ \"\${TEXENV_DEBUG}\" == 1 ]] && set -x"
@@ -154,6 +154,7 @@ cmdInstall() {
   declare TEX_TMP
   declare VERSION
   declare VERSION_LIST
+  declare FORCE_INSTALL
   versionList() {
     curl -sL "https://api.github.com/repos/rstudio/tinytex-releases/releases" |
       awk '/"tag_name"/{gsub(/\"|\"v|\",/, "");print $2}' |
@@ -164,11 +165,17 @@ cmdInstall() {
       versionList
       exit 0
       ;;
+    -f | --force)
+      FORCE_INSTALL=1
+      shift || true
+      VERSION="${1:-}"
+      ;;
     -h | --help)
       echo "Usage: ${0##*/} install [options] <version>"
       echo "Install specified TeX Live version"
       echo "Options:"
       echo "  -l, --list  List available versions"
+      echo "  -f, --force Force reinstall if version is already installed"
       echo "  -h, --help  Show this help message"
       exit 0
       ;;
@@ -181,7 +188,7 @@ cmdInstall() {
     exit 1
   }
   [[ -z "${VERSION}" ]] && {
-    echo "texenv: texenv install <version>" >&2
+    echo "texenv: texenv install [options] <version>" >&2
     exit 1
   }
   VERSION_LIST="$(versionList)"
@@ -196,12 +203,15 @@ cmdInstall() {
     TEX_URL="https://github.com/rstudio/tinytex-releases/releases/download/v${VERSION}/TinyTeX-1-v${VERSION}.${EXT}"
   fi
   TEX_TMP="$(mktemp /tmp/TinyTeX.XXXXXX.${EXT})"
-  [[ -d "${TEX_DIR}" ]] && {
+  [[ -d "${TEX_DIR}" && "${FORCE_INSTALL:-0}" != 1 ]] && {
     echo "texenv: version ${VERSION} is already installed" >&2
     exit 1
   }
   {
     echo "Installing TeX Live version ${VERSION}..." &&
+      [[ "${FORCE_INSTALL:-0}" == 1 ]] && {
+      echo "Reinstalling existing version ${VERSION}..."
+    } &&
       mkdir -p "${TEX_DIR}" &&
       curl -L -f --retry 10 --retry-delay 30 -# "${TEX_URL}" -o "${TEX_TMP}" &&
       tar xf "${TEX_TMP}" -C "${TEX_DIR}" --strip-components=1 &&
