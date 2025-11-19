@@ -158,6 +158,7 @@ cmdInstall() {
   declare VERSION
   declare VERSION_LIST
   declare FORCE_INSTALL
+  declare INSTALL_STATUS
   versionList() {
     curl -sL "https://api.github.com/repos/rstudio/tinytex-releases/releases" |
       awk '/"tag_name"/{gsub(/\"|\"v|\",/, "");print $2}' |
@@ -210,23 +211,26 @@ cmdInstall() {
     TEX_URL="https://github.com/rstudio/tinytex-releases/releases/download/v${VERSION}/TinyTeX-1-v${VERSION}.${EXT}"
   fi
   TEX_TMP="$(mktemp /tmp/TinyTeX.XXXXXX.${EXT})"
-  {
-    echo "Installing TeX Live version ${VERSION}..." &&
-      [[ "${FORCE_INSTALL:-0}" == 1 ]] && {
-      echo "Reinstalling existing version ${VERSION}..."
-    } &&
-      mkdir -p "${TEX_DIR}" &&
-      curl -L -f --retry 10 --retry-delay 30 -# "${TEX_URL}" -o "${TEX_TMP}" &&
-      tar xf "${TEX_TMP}" -C "${TEX_DIR}" --strip-components=1 &&
-      rm -rf "${TEX_TMP}" &&
-      cmdRehash &&
-      echo "TeX Live version ${VERSION} installed successfully."
-  } || {
-    rm -rf "${TEX_DIR:?}" &&
-      rm -rf "${TEX_TMP:?}" &&
-      echo "texenv: failed to install version ${VERSION}" >&2 &&
-      exit 1
+  cleanup() {
+    [[ -n "${TEX_TMP:-}" && -f "${TEX_TMP}" ]] && rm -rf "${TEX_TMP:?}"
+    [[ "${INSTALL_STATUS:-0}" != 1 ]] && {
+      [[ -n "${TEX_DIR:-}" && -d "${TEX_DIR}" ]] && rm -rf "${TEX_DIR:?}"
+      echo "texenv: failed to install version ${VERSION}" >&2
+    }
   }
+  trap cleanup EXIT INT TERM
+  echo "Installing TeX Live version ${VERSION}..."
+  [[ "${FORCE_INSTALL:-0}" == 1 ]] && {
+    echo "Reinstalling existing version ${VERSION}..."
+  }
+  mkdir -p "${TEX_DIR}"
+  curl -L -f --retry 10 --retry-delay 30 -# "${TEX_URL}" -o "${TEX_TMP}"
+  tar xf "${TEX_TMP}" -C "${TEX_DIR}" --strip-components=1
+  rm -rf "${TEX_TMP}"
+  cmdRehash
+  echo "TeX Live version ${VERSION} installed successfully."
+  INSTALL_STATUS=1
+  trap - EXIT INT TERM
 }
 
 # Uninstall specified TeX Live version
@@ -412,7 +416,7 @@ cmdRepo() {
       MIRROR_REPO="${1:-}"
       ;;
     -h | --help)
-      echo "Usage: ${0##*/} repo [options] <repo>"
+      echo "Usage: ${0##*/} repo [options] [<repo>]"
       echo "Manage tlmgr repository"
       echo "Options:"
       echo "  -s, --show           Show current tlmgr repository"
