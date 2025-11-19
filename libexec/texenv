@@ -187,7 +187,7 @@ cmdInstall() {
       ;;
   esac
   [[ -d "${TEXENV_ROOT}" && -d "${TEXENV_VERSIONS}" && -d "${TEXENV_CONFIG}" && -d "${TEXENV_SHIMS}" ]] || {
-    echo "texenv: run 'texenv init' first," >&2
+    echo "texenv: run 'texenv init' first" >&2
     exit 1
   }
   [[ -z "${VERSION}" ]] && {
@@ -432,6 +432,10 @@ cmdRepo() {
   [[ -f "${MIRROR_FILE}" ]] && UNIQUE_REPO="$(cat "${MIRROR_FILE}")"
   CURRENT_REPO="$(executeRun tlmgr option repository | awk -F": " '{print $2}')"
   if [[ "${MIRROR:-}" == 1 ]]; then
+    [[ -d "${TEXENV_CONFIG}" ]] || {
+      echo "texenv: run 'texenv init' first" >&2
+      exit 1
+    }
     [[ -z "${MIRROR_REPO}" ]] && {
       echo "texenv: no mirror repository specified" >&2
       exit 1
