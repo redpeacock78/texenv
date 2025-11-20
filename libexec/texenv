@@ -717,8 +717,8 @@ Active repositories:
 PATH (${0##*/}-related):
 $(
     PATH_LIST="$(awk -F : '{for(i=1;i<=NF;i++) print $i}' <<< "${PATH}")"
-    echo "  bin:   ${TEXENV_BIN}$(grep -qxF "${TEXENV_BIN}" <<< "${PATH_LIST}" && echo "${TEXENV_BIN}" || echo "   (not set in \$PATH)")"
-    echo "  shims: ${TEXENV_SHIMS}$(grep -qxF "${TEXENV_SHIMS}" <<< "${PATH_LIST}" && echo "${TEXENV_SHIMS}" || echo " (not set in \$PATH)")"
+    echo "  bin:   ${TEXENV_BIN}$(grep -qxF "${TEXENV_BIN}" <<< "${PATH_LIST}" || echo "   (not set in \$PATH)")"
+    echo "  shims: ${TEXENV_SHIMS}$(grep -qxF "${TEXENV_SHIMS}" <<< "${PATH_LIST}" || echo " (not set in \$PATH)")"
   )
 Installed versions:
 $( (cmdVersions 2> /dev/null) || echo "  not installed")
