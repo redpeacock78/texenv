@@ -59,6 +59,7 @@ resolveVersion() {
 }
 
 # Execute command in current TeX Live version
+# @param {string} command - Command to execute
 executeRun() {
   declare VERSION
   declare VERSION_PATH
@@ -303,6 +304,7 @@ cmdVersion() {
 cmdVersions() {
   declare VERSION
   declare VERSION_PATH
+  declare VERSIONS
   case "${1:-}" in
     -h | --help)
       echo "Usage: ${0##*/} versions [options]"
@@ -316,8 +318,12 @@ cmdVersions() {
     resolveVersion
     VERSION="${VERSION_INFO[0]}"
     VERSION_PATH="${VERSION_INFO[1]}"
-    find "${TEXENV_VERSIONS}" -maxdepth 1 ! -name "${TEXENV_VERSIONS##*/}" -type d |
-      sort |
+    VERSIONS="$(find "${TEXENV_VERSIONS}" -maxdepth 1 ! -name "${TEXENV_VERSIONS##*/}" -type d)"
+    [[ -z "${VERSIONS}" ]] && {
+      echo "texenv: no versions installed" >&2
+      exit 1
+    }
+    sort <<< "${VERSIONS}" |
       awk -F/ -v ver="${VERSION}" -v ver_path="${VERSION_PATH}" '{
           if ($NF == ver) {
             printf("* %s (set by %s)\n", $NF, ver_path)
@@ -453,7 +459,7 @@ cmdRepo() {
       return 0
     }
     REPO="${MIRROR_REPO}"
-  elif [[ ! -z "${UNIQUE_REPO:-}" ]]; then
+  elif [[ -n "${UNIQUE_REPO:-}" ]]; then
     [[ ! "${UNIQUE_REPO}" =~ ${regex} ]] && {
       echo "texenv: invalid mirror repository URL '${UNIQUE_REPO}'" >&2
       exit 1
@@ -676,8 +682,8 @@ cmdWhence() {
     echo "texenv: command '${CMD_NAME}' not found" >&2
     exit 1
   }
-  sort <<< "${RESULT}" |
-    awk -F/ '{print $(NF-3) " => " $0}'
+    awk -F/ '{print $(NF-3) " => " $0}' <<< "${RESULT}" |
+        sort
 }
 
 # Display help message
@@ -726,7 +732,7 @@ main() {
     whence) cmdWhence "${@}" ;;
     help | -h | --help) cmdHelp ;;
     *)
-      [[ ! -z "${CMD}" ]] && echo "texenv: unknown command '${CMD}'" >&2
+      [[ -n "${CMD}" ]] && echo "texenv: unknown command '${CMD}'" >&2
       echo "Run 'texenv help' for usage." >&2
       exit 1
       ;;
