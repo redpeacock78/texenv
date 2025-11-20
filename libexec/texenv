@@ -701,6 +701,32 @@ cmdWhence() {
     sort
 }
 
+# Display texenv environment information
+cmdEnv() {
+  cat << EOF
+TinyTeX: $( (cmdVersion 2> /dev/null) || echo "not set")
+TEXMF PATHS:
+  TEXHOME        = $( (executeRun kpsewhich -var-value=TEXMFHOME 2> /dev/null) || echo "${TEXMF_HOME}")
+  TEXMFVAR       = $( (executeRun kpsewhich -var-value=TEXMFVAR 2> /dev/null) || echo "${TEXMF_HOME}")
+  TEXMFCONFIG    = $( (executeRun kpsewhich -var-value=TEXMFCONFIG 2> /dev/null) || echo "${TEXMF_HOME}")
+  TEXMFLOCAL     = $( (executeRun kpsewhich -var-value=TEXMFLOCAL 2> /dev/null) || echo "${TEXMF_HOME}")
+  TEXMFSYSVAR    = $( (executeRun kpsewhich -var-value=TEXMFSYSVAR 2> /dev/null) || echo "${TEXMF_HOME}")
+  TEXMFSYSCONFIG = $( (executeRun kpsewhich -var-value=TEXMFSYSCONFIG 2> /dev/null) || echo "${TEXMF_HOME}")
+  TEXMFDIST      = $( (executeRun kpsewhich -var-value=TEXMFDIST 2> /dev/null) || echo "${TEXMF_HOME}")
+Active repositories:
+  $(
+    REPO=$(cmdRepo -s 2> /dev/null || true)
+    [[ -n "${REPO}" ]] && echo "${REPO}" || echo "not set"
+  )
+PATH (${0##*/}-related):
+  ${TEXENV_BIN}
+  ${TEXENV_SHIMS}
+Installed versions:
+$( (cmdVersions 2> /dev/null) || echo "  none")
+EOF
+  exit 0
+}
+
 # Display help message
 cmdHelp() {
   cat << EOF
@@ -721,6 +747,7 @@ Commands:
   which <cmd>         Show path to shim for specified command
   where <cmd>         Show path to command in current TeX Live version
   whence <cmd>        Show path to command in all installed TeX Live versions
+  env                 Display ${0##*/} environment information
   help                Show this help message
 EOF
   exit 0
@@ -745,6 +772,7 @@ main() {
     which) cmdWhich "${@}" ;;
     where) cmdWhere "${@}" ;;
     whence) cmdWhence "${@}" ;;
+    env) cmdEnv ;;
     help | -h | --help) cmdHelp ;;
     *)
       [[ -n "${CMD}" ]] && echo "texenv: unknown command '${CMD}'" >&2
