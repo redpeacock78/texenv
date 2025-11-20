@@ -31,6 +31,7 @@ declare -r TEX_GLOBAL_VERSION_FILE="version"
 declare -r TEX_LOCAL_VERSION_FILE=".tex-version"
 declare -r REQUIREMENTS_FILE="tex-require.txt"
 declare -r REQUIREMENTS_LOCK_FILE="tex-require.lock"
+declare -r CMD_LIST_CACHE="${TEXENV_CONFIG}/cmd_list_cache.txt"
 declare -a VERSION_INFO
 
 # Resolve current TeX Live version
@@ -126,25 +127,31 @@ cmdInit() {
 
 # Rebuild shims for installed TeX Live versions
 cmdRehash() {
+  declare CMD_LIST
   {
+    [[ ! -d "${TEXENV_VERSIONS}" ]] && {
+      echo "texenv: no versions installed" >&2
+      exit 1
+    }
     rm -rf "${TEXENV_SHIMS:?}"/* &&
-      find "${TEXENV_VERSIONS}" -path "*/bin/${PLATFORM}/*" ! -type d -exec test -e {} \; -print |
-      awk -F/ '!a[$NF]++{print $NF}' |
-        while read -r CMD; do
-          declare SHIM_PATH="${TEXENV_SHIMS}/${CMD}"
-          {
-            builtin echo "#!/usr/bin/env bash"
-            builtin echo "[[ \"\${TEXENV_DEBUG}\" == 1 ]] && set -x"
-            builtin echo "set -euo pipefail"
-            builtin echo "shim() {"
-            builtin echo "  declare -r CMD_PATH=\"\$(builtin cd \"\${0%/*}\" && builtin echo \"\${PWD/shims/bin}\")\""
-            builtin echo "  declare -r CMD_NAME=\"\${0##*/}\""
-            builtin echo "  exec \"\${CMD_PATH}/texenv\" exec \"\${CMD_NAME}\" \"\${@}\""
-            builtin echo "}"
-            builtin echo "shim \"\${@}\""
-          } > "${SHIM_PATH}" &&
-            chmod +x "${SHIM_PATH}"
-        done
+      CMD_LIST="$(find "${TEXENV_VERSIONS}" -path "*/bin/${PLATFORM}/*" ! -type d -exec test -e {} \; -print)"
+    awk -F/ '!a[$NF]++{print $NF}' <<< "${CMD_LIST}" |
+      while read -r CMD; do
+        declare SHIM_PATH="${TEXENV_SHIMS}/${CMD}"
+        {
+          builtin echo "#!/usr/bin/env bash"
+          builtin echo "[[ \"\${TEXENV_DEBUG}\" == 1 ]] && set -x"
+          builtin echo "set -euo pipefail"
+          builtin echo "shim() {"
+          builtin echo "  declare -r CMD_PATH=\"\$(builtin cd \"\${0%/*}\" && builtin echo \"\${PWD/shims/bin}\")\""
+          builtin echo "  declare -r CMD_NAME=\"\${0##*/}\""
+          builtin echo "  exec \"\${CMD_PATH}/texenv\" exec \"\${CMD_NAME}\" \"\${@}\""
+          builtin echo "}"
+          builtin echo "shim \"\${@}\""
+        } > "${SHIM_PATH}" &&
+          chmod +x "${SHIM_PATH}"
+      done
+    echo "${CMD_LIST}" > "${CMD_LIST_CACHE}"
   } || {
     echo "texenv: failed to rehash shims" >&2
     exit 1
@@ -585,7 +592,7 @@ cmdRestore() {
   resolveVersion
   TEX_VERSION="${VERSION_INFO[0]%%.*}"
   LOCK_TEX_VERSION="$(awk -F ": " 'NR==1{print $2}' "${FILE_NAME}")"
-  [[ ! -z "${LOCK_TEX_VERSION:-}" ]] && (("${TEX_VERSION}" < "${LOCK_TEX_VERSION}")) && {
+  [[ -n "${LOCK_TEX_VERSION:-}" ]] && (("${TEX_VERSION}" < "${LOCK_TEX_VERSION}")) && {
     echo "texenv: TeX Live version ${TEX_VERSION} is older than the required version ${LOCK_TEX_VERSION}" >&2
     exit 1
   }
@@ -681,7 +688,11 @@ cmdWhence() {
     echo "texenv: no versions installed" >&2
     exit 1
   }
-  RESULT="$(find "${TEXENV_VERSIONS}" -path "*/bin/${PLATFORM}/${CMD_NAME}" ! -type d -exec test -e {} \; -print)"
+  if [[ -f "${CMD_LIST_CACHE}" ]]; then
+    RESULT="$(grep "/${CMD_NAME}$" "${CMD_LIST_CACHE}")"
+  else
+    RESULT="$(find "${TEXENV_VERSIONS}" -path "*/bin/${PLATFORM}/${CMD_NAME}" ! -type d -exec test -e {} \; -print)"
+  fi
   [[ -z "${RESULT}" ]] && {
     echo "texenv: command '${CMD_NAME}' not found" >&2
     exit 1
