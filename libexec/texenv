@@ -703,22 +703,25 @@ cmdEnv() {
 TinyTeX: $( (cmdVersion 2> /dev/null) || echo "not set")
 TEXMF PATHS:
   TEXHOME        = $( (executeRun kpsewhich -var-value=TEXMFHOME 2> /dev/null) || echo "${TEXMF_HOME}")
-  TEXMFVAR       = $( (executeRun kpsewhich -var-value=TEXMFVAR 2> /dev/null) || echo "${TEXMF_HOME}")
-  TEXMFCONFIG    = $( (executeRun kpsewhich -var-value=TEXMFCONFIG 2> /dev/null) || echo "${TEXMF_HOME}")
-  TEXMFLOCAL     = $( (executeRun kpsewhich -var-value=TEXMFLOCAL 2> /dev/null) || echo "${TEXMF_HOME}")
-  TEXMFSYSVAR    = $( (executeRun kpsewhich -var-value=TEXMFSYSVAR 2> /dev/null) || echo "${TEXMF_HOME}")
-  TEXMFSYSCONFIG = $( (executeRun kpsewhich -var-value=TEXMFSYSCONFIG 2> /dev/null) || echo "${TEXMF_HOME}")
-  TEXMFDIST      = $( (executeRun kpsewhich -var-value=TEXMFDIST 2> /dev/null) || echo "${TEXMF_HOME}")
+  TEXMFVAR       = $( (executeRun kpsewhich -var-value=TEXMFVAR 2> /dev/null) || echo "not set")
+  TEXMFCONFIG    = $( (executeRun kpsewhich -var-value=TEXMFCONFIG 2> /dev/null) || echo "not set")
+  TEXMFLOCAL     = $( (executeRun kpsewhich -var-value=TEXMFLOCAL 2> /dev/null) || echo "not set")
+  TEXMFSYSVAR    = $( (executeRun kpsewhich -var-value=TEXMFSYSVAR 2> /dev/null) || echo "not set")
+  TEXMFSYSCONFIG = $( (executeRun kpsewhich -var-value=TEXMFSYSCONFIG 2> /dev/null) || echo "not set")
+  TEXMFDIST      = $( (executeRun kpsewhich -var-value=TEXMFDIST 2> /dev/null) || echo "not set")
 Active repositories:
   $(
     REPO="$(cmdRepo -s 2> /dev/null || true)"
     [[ -n "${REPO}" ]] && echo "${REPO}" || echo "not set"
   )
 PATH (${0##*/}-related):
-  ${TEXENV_BIN}
-  ${TEXENV_SHIMS}
+$(
+    PATH_LIST="$(awk -F : '{for(i=1;i<=NF;i++) print $i}' <<< "${PATH}")"
+    echo "  bin:   ${TEXENV_BIN}$(grep -qxF "${TEXENV_BIN}" <<< "${PATH_LIST}" && echo "${TEXENV_BIN}" || echo "   (not set in \$PATH)")"
+    echo "  shims: ${TEXENV_SHIMS}$(grep -qxF "${TEXENV_SHIMS}" <<< "${PATH_LIST}" && echo "${TEXENV_SHIMS}" || echo " (not set in \$PATH)")"
+  )
 Installed versions:
-$( (cmdVersions 2> /dev/null) || echo "  none")
+$( (cmdVersions 2> /dev/null) || echo "  not installed")
 EOF
   exit 0
 }
