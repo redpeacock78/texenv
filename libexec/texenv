@@ -325,10 +325,6 @@ cmdVersions() {
     resolveVersion
     VERSION="${VERSION_INFO[0]}"
     VERSION_PATH="${VERSION_INFO[1]}"
-    [[ -z "${VERSION}" || -z "${VERSION_PATH}" ]] && {
-      echo "texenv: no versions installed" >&2
-      exit 1
-    }
     VERSIONS="$(find "${TEXENV_VERSIONS}" -maxdepth 1 ! -name "${TEXENV_VERSIONS##*/}" -type d)"
     [[ -z "${VERSIONS}" ]] && {
       echo "texenv: no versions installed" >&2
