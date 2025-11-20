@@ -715,7 +715,7 @@ TEXMF PATHS:
   TEXMFDIST      = $( (executeRun kpsewhich -var-value=TEXMFDIST 2> /dev/null) || echo "${TEXMF_HOME}")
 Active repositories:
   $(
-    REPO=$(cmdRepo -s 2> /dev/null || true)
+    REPO="$(cmdRepo -s 2> /dev/null || true)"
     [[ -n "${REPO}" ]] && echo "${REPO}" || echo "not set"
   )
 PATH (${0##*/}-related):
