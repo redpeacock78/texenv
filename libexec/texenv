@@ -753,6 +753,7 @@ EOF
 }
 
 main() {
+  declare CMD
   CMD="${1:-}"
   shift || true
   case "${CMD:-}" in
