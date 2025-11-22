@@ -9,16 +9,20 @@
 # @(#)Depends:
 # @(#)  shift
 # @(#)  mkdir
+# @(#)  uname
 # @(#)  grep
 # @(#)  bash
 # @(#)  curl
 # @(#)  perl
 # @(#)  find
 # @(#)  exec
+# @(#)  sort
+# @(#)  test
 # @(#)  awk
 # @(#)  cat
 # @(#)  tar
 # @(#)  tr
+# @(#)  rm
 ########################################
 
 declare -r TEXENV_DEBUG
