@@ -30,7 +30,7 @@ declare -r TEXENV_DEBUG
 set -euo pipefail
 
 perl -mFile::Find /dev/null || {
-  echo "perl is required but not found (https://github.com/rstudio/tinytex/issues/419)" >&2
+  builtin echo "perl is required but not found (https://github.com/rstudio/tinytex/issues/419)" >&2
   exit 1
 }
 
@@ -43,7 +43,7 @@ elif [[ "${OS_NAME}" == "Linux" ]]; then
   declare -r TEXENV_PLATFORM="x86_64-linux"
   declare -r TINYTEX_ARCHIVE_EXT="tar.gz"
 else
-  echo "texenv: unsupported OS '${OS_NAME}'" >&2
+  builtin echo "texenv: unsupported OS '${OS_NAME}'" >&2
   exit 1
 fi
 declare -r TEXENV_ROOT="${TEXENV_ROOT:-${HOME}/.texenv}"
