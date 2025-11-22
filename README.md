@@ -29,7 +29,7 @@ A lightweight version manager for TinyTeX (minimal TeX Live) inspired by rbenv. 
   - curl
   - perl with File::Find module (validated at startup)
   - tar
-  - find, grep, awk, tr, cat, mkdir
+  - find, grep, awk, tr, cat, mkdir, uname, sort, rm
 - Network:
   - Internet access to GitHub Releases and API (for version list and archives)
 
