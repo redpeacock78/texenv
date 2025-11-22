@@ -1,4 +1,25 @@
 #!/usr/bin/env bash
+#
+# @(#)texenv
+# @(#)(c) 2025 redpeacock78
+# @(#)MIT License is applied to this script.
+########################################
+# @(#)A lightweight version manager for TinyTeX (minimal TeX Live) inspired by rbenv.
+# @(#)It lets you install multiple TinyTeX releases side‑by‑side, select global or per‑project versions, expose TeX executables through shims, and freeze / restore package sets.
+# @(#)Depends:
+# @(#)  shift
+# @(#)  mkdir
+# @(#)  grep
+# @(#)  bash
+# @(#)  curl
+# @(#)  perl
+# @(#)  find
+# @(#)  exec
+# @(#)  awk
+# @(#)  cat
+# @(#)  tar
+# @(#)  tr
+########################################
 
 declare -r TEXENV_DEBUG
 [[ "${TEXENV_DEBUG}" == 1 ]] && set -x
