@@ -102,7 +102,7 @@ main() {
   declare CMD_NAME
   declare CMD_PATH
   CMD_NAME="${1:-}"
-  CMD_PATH="$(type -P "texenv-${CMD_NAME##*-}" || true)"
+  CMD_PATH="$(type -P "texenv-${CMD_NAME}" || true)"
   shift || true
   case "${CMD_NAME:-}" in
     init) exec "${CMD_PATH}" "${@}" ;;
