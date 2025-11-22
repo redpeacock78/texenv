@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+
+declare TEXENV_DEBUG
+[[ "${TEXENV_DEBUG}" == 1 ]] && set -x
+set -euo pipefail
+
+# Uninstall specified TeX Live version
+cmdUninstall() {
+  declare VERSION
+  declare SCRIPT_NAME
+  declare cmdRehash
+  SCRIPT_NAME="${0##*/}"
+  case "${1:-}" in
+    -h | --help)
+      builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SCRIPT_NAME##*-} [options] <version>"
+      builtin echo "Uninstall specified TeX Live version"
+      builtin echo "Options:"
+      builtin echo "  -h, --help  Show this help message"
+      exit 0
+      ;;
+    *)
+      VERSION="${1:-}"
+      ;;
+  esac
+  [[ -d "${TEXENV_ROOT}" && -d "${TEXENV_VERSIONS}" && -d "${TEXENV_CONFIG}" && -d "${TEXENV_SHIMS}" ]] || {
+    builtin echo "texenv: run 'texenv init' first," >&2
+    exit 1
+  }
+  [[ -z "${VERSION}" ]] && {
+    builtin echo "USAGE: texenv uninstall <version>" >&2
+    exit 1
+  }
+  [[ -d "${TEXENV_VERSIONS}/${VERSION}" ]] || {
+    builtin echo "texenv: version ${VERSION} is not installed" >&2
+    exit 1
+  }
+  {
+    cmdRehash="$(type -P 'texenv-rehash' || true)"
+    builtin echo "Uninstalling version ${VERSION}..."
+    rm -rf "${TEXENV_VERSIONS}/${VERSION:?}"
+    "${cmdRehash}"
+    builtin echo "TeX Live version ${VERSION} uninstalled successfully."
+  } || {
+    builtin echo "texenv: failed to uninstall version ${VERSION}" >&2
+    exit 1
+  }
+}
+
+cmdUninstall "${@}"

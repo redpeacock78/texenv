@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+
+declare -r TEXENV_DEBUG
+[[ "${TEXENV_DEBUG}" == 1 ]] && set -x
+set -euo pipefail
+
+cmdHelp() {
+  declare SCRIPT_NAME
+  SCRIPT_NAME="${0##*/}"
+  cat << EOF
+USAGE: ${SCRIPT_NAME%%-*} <command> [<args>]
+Commands:
+  init                Initialize ${SCRIPT_NAME%%-*} environment
+  install <version>   Install specified TeX Live version
+  uninstall <version> Uninstall specified TeX Live version
+  version             Show current TeX Live version
+  versions            List installed TeX Live versions
+  global <version>    Set global TeX Live version
+  local <version>     Set local TeX Live version
+  repo [options]      Manage tlmgr repository
+  exec <cmd> [args]   Execute command in current TeX Live version
+  rehash              Rebuild shims for installed TeX Live versions
+  freeze [options]    Freeze installed TeX packages to requirements file
+  restore             Restore TeX packages from requirements file
+  which <cmd>         Show path to shim for specified command
+  where <cmd>         Show path to command in current TeX Live version
+  whence <cmd>        Show path to command in all installed TeX Live versions
+  env                 Display ${SCRIPT_NAME%%-*} environment information
+  help                Show this help message
+EOF
+  exit 0
+}
+
+cmdHelp

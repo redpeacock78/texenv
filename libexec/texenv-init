@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+
+declare TEXENV_DEBUG
+[[ "${TEXENV_DEBUG}" == 1 ]] && set -x
+set -euo pipefail
+
+# Initialize texenv environment
+cmdInit() {
+  declare SCRIPT_NAME
+  SCRIPT_NAME="${0##*/}"
+  case "${1:-}" in
+    -)
+      builtin echo "export PATH=\"${TEXENV_BIN}:\${PATH}\""
+      builtin echo "export PATH=\"${TEXENV_SHIMS}:\${PATH}\""
+      exit 0
+      ;;
+    -h | --help)
+      builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SCRIPT_NAME##*-} [options]"
+      builtin echo "Initialize ${SCRIPT_NAME%%-*} environment"
+      builtin echo "Options:"
+      builtin echo "  -           Output shell commands to set up ${SCRIPT_NAME%%-*} environment"
+      builtin echo "  -h, --help  Show this help message"
+      exit 0
+      ;;
+  esac
+  {
+    builtin echo "Initializing texenv environment..."
+    [[ -d "${TEXENV_ROOT}" ]] || mkdir -p "${TEXENV_ROOT}"
+    [[ -d "${TEXENV_VERSIONS}" ]] || mkdir -p "${TEXENV_VERSIONS}"
+    [[ -d "${TEXENV_CONFIG}" ]] || mkdir -p "${TEXENV_CONFIG}"
+    [[ -d "${TEXENV_SHIMS}" ]] || mkdir -p "${TEXENV_SHIMS}"
+    [[ -d "${TEXMF_HOME}" ]] || mkdir -p "${TEXMF_HOME}"
+    [[ -f "${TEXENV_ROOT}/${TEX_GLOBAL_VERSION_FILE}" ]] || touch "${TEXENV_ROOT}/${TEX_GLOBAL_VERSION_FILE}"
+    builtin echo "texenv initialized at ${TEXENV_ROOT}"
+  } || {
+    builtin echo "texenv: failed to initialize" >&2
+    exit 1
+  }
+}
+
+cmdInit "${@}"

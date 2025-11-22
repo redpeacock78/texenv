@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+
+declare -r TEXENV_DEBUG
+[[ "${TEXENV_DEBUG}" == 1 ]] && set -x
+set -euo pipefail
+
+# Freeze TeX packages to requirements file
+cmdFreeze() {
+  declare FILE
+  declare TEX_VERSION
+  declare SCRIPT_NAME
+  declare cmdExec
+  declare cmdVersion
+  SCRIPT_NAME="${0##*/}"
+  cmdExec="$(type -P "texenv-exec" || true)"
+  cmdVersion="$(type -P "texenv-version" || true)"
+  "${cmdVersion}" > /dev/null
+  FILE="${TEX_REQUIREMENTS_FILE}"
+  case "${1:-}" in
+    -l | --lock)
+      FILE="${TEX_REQUIREMENTS_LOCK_FILE}"
+      TEX_VERSION="$("${cmdExec}" tlmgr --version | awk 'END{print $5}')"
+      ;;
+    -h | --help)
+      builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SCRIPT_NAME##*-} [options]"
+      builtin echo "Freeze installed TeX packages to requirements file"
+      builtin echo "Options:"
+      builtin echo "  -l, --lock  Freeze to lock file with TeX Live version"
+      builtin echo "  -h, --help  Show this help message"
+      exit 0
+      ;;
+  esac
+  {
+    builtin echo "Freezing TeX packages to ${FILE}..."
+    cat <([[ -z "${TEX_VERSION:-}" ]] || builtin echo "# TeX Live: ${TEX_VERSION}") <("${cmdExec}" tlmgr info --only-installed --data name) > "${FILE}"
+  } || {
+    builtin echo "texenv: failed to freeze TeX packages" >&2
+    exit 1
+  }
+}
+
+cmdFreeze "${@}"

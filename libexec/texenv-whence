@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+
+declare TEXENV_DEBUG
+[[ "${TEXENV_DEBUG}" == 1 ]] && set -x
+set -euo pipefail
+
+# Show path to command in all installed TeX Live versions
+cmdWhence() {
+  declare CMD_NAME
+  declare RESULT
+  declare SCRIPT_NAME
+  SCRIPT_NAME="${0##*/}"
+  case "${1:-}" in
+    -h | --help)
+      builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SCRIPT_NAME##*-} <cmd>"
+      builtin echo "Show path to command in all installed TeX Live versions"
+      builtin echo "Options:"
+      builtin echo "  -h, --help  Show this help message"
+      exit 0
+      ;;
+  esac
+  CMD_NAME="${1:-}"
+  [[ -z "${CMD_NAME}" ]] && {
+    builtin echo "texenv: no command specified" >&2
+    exit 1
+  }
+  [[ ! -d "${TEXENV_VERSIONS}" ]] && {
+    builtin echo "texenv: no versions installed" >&2
+    exit 1
+  }
+  if [[ -f "${TEX_CMD_LIST_CACHE}" ]]; then
+    RESULT="$(grep "/${CMD_NAME}$" "${TEX_CMD_LIST_CACHE}")"
+  else
+    RESULT="$(find "${TEXENV_VERSIONS}" -path "*/bin/${TEXENV_PLATFORM}/${CMD_NAME}" ! -type d -exec test -e {} \; -print)"
+  fi
+  [[ -z "${RESULT}" ]] && {
+    builtin echo "texenv: command '${CMD_NAME}' not found" >&2
+    exit 1
+  }
+  awk -F/ '{print $(NF-3) " => " $0}' <<< "${RESULT}" |
+    sort
+}
+
+cmdWhence "${@}"

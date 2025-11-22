@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+
+declare -r TEXENV_DEBUG
+[[ "${TEXENV_DEBUG}" == 1 ]] && set -x
+set -euo pipefail
+
+# Set local TeX Live version
+cmdLocal() {
+  declare VERSION
+  declare SCRIPT_NAME
+  SCRIPT_NAME="${0##*/}"
+  case "${1:-}" in
+    -h | --help)
+      builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SCRIPT_NAME##*-} [options] <version>"
+      builtin echo "Set local TeX Live version"
+      builtin echo "Options:"
+      builtin echo "  -h, --help  Show this help message"
+      exit 0
+      ;;
+    *)
+      VERSION="${1:-}"
+      ;;
+  esac
+  [[ -z "${VERSION}" ]] && {
+    builtin echo "USAGE: texenv local <version>" >&2
+    exit 1
+  }
+  [[ -d "${TEXENV_VERSIONS}/${VERSION}" ]] || {
+    builtin echo "texenv: version ${VERSION} is not installed" >&2
+    exit 1
+  }
+  {
+    builtin echo "${VERSION}" > "${PWD}/${TEX_LOCAL_VERSION_FILE}"
+  } || {
+    builtin echo "texenv: failed to set local version" >&2
+    exit 1
+  }
+}
+
+cmdLocal "${@}"

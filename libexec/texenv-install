@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+
+declare TEXENV_DEBUG
+[[ "${TEXENV_DEBUG}" == 1 ]] && set -x
+set -euo pipefail
+
+# Install specified TeX Live version
+cmdInstall() {
+  declare TEX_DIR
+  declare TEX_URL
+  declare TEX_TMP
+  declare VERSION
+  declare VERSION_LIST
+  declare FORCE_INSTALL
+  declare INSTALL_STATUS
+  declare SCRIPT_NAME
+  declare cmdRehash
+  SCRIPT_NAME="${0##*/}"
+  versionList() {
+    curl -sL "https://api.github.com/repos/rstudio/tinytex-releases/releases" |
+      awk '/"tag_name"/{gsub(/\"|\"v|\",/, "");print $2}' |
+      awk '{a[NR]=$0}END{for(i=NR;i>0;i--){print a[i]}}'
+  }
+  case "${1:-}" in
+    -l | --list)
+      versionList
+      exit 0
+      ;;
+    -f | --force)
+      FORCE_INSTALL=1
+      shift || true
+      VERSION="${1:-}"
+      ;;
+    -h | --help)
+      builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SCRIPT_NAME##*-} [options] <version>"
+      builtin echo "Install specified TeX Live version"
+      builtin echo "Options:"
+      builtin echo "  -l, --list  List available versions"
+      builtin echo "  -f, --force Force reinstall if version is already installed"
+      builtin echo "  -h, --help  Show this help message"
+      exit 0
+      ;;
+    *)
+      VERSION="${1:-}"
+      ;;
+  esac
+  [[ -d "${TEXENV_ROOT}" && -d "${TEXENV_VERSIONS}" && -d "${TEXENV_CONFIG}" && -d "${TEXENV_SHIMS}" ]] || {
+    builtin echo "texenv: run 'texenv init' first" >&2
+    exit 1
+  }
+  [[ -z "${VERSION}" ]] && {
+    builtin echo "texenv: texenv install [options] <version>" >&2
+    exit 1
+  }
+  TEX_DIR="${TEXENV_VERSIONS}/${VERSION/daily/daily-$(date +%Y.%m.%d)}"
+  [[ -d "${TEX_DIR}" && "${FORCE_INSTALL:-0}" != 1 ]] && {
+    builtin echo "texenv: version ${VERSION} is already installed" >&2
+    exit 1
+  }
+  VERSION_LIST="$(versionList)"
+  grep -qxF "${VERSION}" <<< "${VERSION_LIST}" || {
+    builtin echo "texenv: version '${VERSION}' is not available" >&2
+    exit 1
+  }
+  if [[ "${VERSION}" == "daily" ]]; then
+    TEX_URL="https://github.com/rstudio/tinytex-releases/releases/download/daily/TinyTeX-1.${TINYTEX_ARCHIVE_EXT}"
+  else
+    TEX_URL="https://github.com/rstudio/tinytex-releases/releases/download/v${VERSION}/TinyTeX-1-v${VERSION}.${TINYTEX_ARCHIVE_EXT}"
+  fi
+  TEX_TMP="$(mktemp "/tmp/TinyTeX.XXXXXX.${TINYTEX_ARCHIVE_EXT}")"
+  cleanup() {
+    [[ -n "${TEX_TMP:-}" && -f "${TEX_TMP}" ]] && rm -rf "${TEX_TMP:?}"
+    [[ "${INSTALL_STATUS:-0}" != 1 ]] && {
+      [[ -n "${TEX_DIR:-}" && -d "${TEX_DIR}" ]] && rm -rf "${TEX_DIR:?}"
+      builtin echo "texenv: failed to install version ${VERSION}" >&2
+    }
+  }
+  trap cleanup EXIT INT TERM
+  builtin echo "Installing TeX Live version ${VERSION}..."
+  [[ "${FORCE_INSTALL:-0}" == 1 ]] && {
+    builtin echo "Reinstalling existing version ${VERSION}..."
+  }
+  cmdRehash="$(type -P 'texenv-rehash' || true)"
+  mkdir -p "${TEX_DIR}"
+  curl -L -f --retry 10 --retry-delay 30 -# "${TEX_URL}" -o "${TEX_TMP}"
+  tar xf "${TEX_TMP}" -C "${TEX_DIR}" --strip-components=1
+  rm -rf "${TEX_TMP}"
+  "${cmdRehash}"
+  builtin echo "TeX Live version ${VERSION} installed successfully."
+  INSTALL_STATUS=1
+  trap - EXIT INT TERM
+}
+
+cmdInstall "${@}"

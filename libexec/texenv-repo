@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+
+declare TEXENV_DEBUG
+[[ "${TEXENV_DEBUG}" == 1 ]] && set -x
+set -euo pipefail
+
+# Manage tlmgr repository
+cmdRepo() {
+  declare libs
+  declare executeRun
+  declare resolveVersion
+  declare VERSION
+  declare REPO
+  declare TEX_VERSION_INFO
+  declare VERSION_YEAR
+  declare CURRENT_REPO
+  declare CURRENT_YEAR
+  declare MIRROR
+  declare MIRROR_REPO
+  declare UNIQUE_REPO
+  declare MIRROR_FILE
+  declare SCRIPT_NAME
+  declare regex
+  SCRIPT_NAME="${0##*/}"
+  libs="$(type -P "texenv-libs" || true)"
+  executeRun="${libs} executeRun"
+  resolveVersion="${libs} resolveVersion"
+  case "${1:-}" in
+    -s | --show)
+      ${executeRun} tlmgr option repository | awk -F": " '{print $2}'
+      exit 0
+      ;;
+    -m | --mirror)
+      MIRROR=1
+      shift || true
+      MIRROR_REPO="${1:-}"
+      ;;
+    -h | --help)
+      builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SCRIPT_NAME##*-} [options] [<repo>]"
+      builtin echo "Manage tlmgr repository"
+      builtin echo "Options:"
+      builtin echo "  -s, --show           Show current tlmgr repository"
+      builtin echo "  -m, --mirror <repo>  Set tlmgr repository to specified mirror"
+      builtin echo "  -h, --help           Show this help message"
+      exit 0
+      ;;
+  esac
+  TEX_VERSION_INFO="$(${resolveVersion} || true)"
+  VERSION="$(awk -F": " '/TinyTeX-Version: /{print $2}' <<< "${TEX_VERSION_INFO}")"
+  [[ -z "${VERSION}" ]] && {
+    builtin echo "texenv: no version set (use 'texenv global <version>' or 'texenv local <version>')" >&2
+    exit 1
+  }
+  regex='^(https?|ftp|file)://.*'
+  MIRROR_FILE="${TEXENV_CONFIG}/${VERSION}/mirror_repo.txt"
+  [[ -f "${MIRROR_FILE}" ]] && UNIQUE_REPO="$(cat "${MIRROR_FILE}")"
+  CURRENT_REPO="$(${executeRun} tlmgr option repository | awk -F": " '{print $2}')"
+  if [[ "${MIRROR:-}" == 1 ]]; then
+    [[ -d "${TEXENV_CONFIG}" ]] || {
+      builtin echo "texenv: run 'texenv init' first" >&2
+      exit 1
+    }
+    [[ -z "${MIRROR_REPO}" ]] && {
+      builtin echo "texenv: no mirror repository specified" >&2
+      exit 1
+    }
+    [[ ! "${MIRROR_REPO}" =~ ${regex} ]] && {
+      builtin echo "texenv: invalid mirror repository URL '${MIRROR_REPO}'" >&2
+      exit 1
+    }
+    [[ "${MIRROR_REPO}" == "${CURRENT_REPO}" ]] && {
+      builtin echo "texenv: Repository is already set to the specified mirror repository."
+      return 0
+    }
+    REPO="${MIRROR_REPO}"
+  elif [[ -n "${UNIQUE_REPO:-}" ]]; then
+    [[ ! "${UNIQUE_REPO}" =~ ${regex} ]] && {
+      builtin echo "texenv: invalid mirror repository URL '${UNIQUE_REPO}'" >&2
+      exit 1
+    }
+    [[ "${UNIQUE_REPO}" == "${CURRENT_REPO}" ]] && {
+      builtin echo "texenv: Repository is already set to the unique mirror repository."
+      return 0
+    }
+    REPO="${UNIQUE_REPO}"
+  else
+    VERSION_YEAR="${VERSION%%.*}"
+    REPO="https://ctan.math.illinois.edu/systems/texlive/tlnet"
+    CURRENT_YEAR="$(date +%Y)"
+    if [[ "${VERSION_YEAR}" == "${CURRENT_YEAR}" ]]; then
+      [[ "${REPO}" == "${CURRENT_REPO}" ]] && {
+        builtin echo "texenv: Repository is already set to the latest TeX Live repository."
+        return 0
+      }
+    else
+      REPO="https://ftp.math.utah.edu/pub/tex/historic/systems/texlive/${VERSION_YEAR}/tlnet-final"
+    fi
+  fi
+  {
+    echo "texenv: Setting tlmgr repository to ${REPO}..."
+    ${executeRun} tlmgr option repository "${REPO}" &&
+      [[ "${MIRROR:-}" == 1 ]] && {
+      mkdir -p "${TEXENV_CONFIG}/${VERSION}" &&
+        builtin echo "${REPO}" > "${MIRROR_FILE}"
+    }
+  } || {
+    builtin echo "texenv: failed to set tlmgr repository" >&2
+    exit 1
+  }
+}
+
+cmdRepo "${@}"

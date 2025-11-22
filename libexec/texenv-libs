@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+
+declare -r TEXENV_DEBUG
+[[ "${TEXENV_DEBUG}" == 1 ]] && set -x
+set -euo pipefail
+
+resolveVersion() {
+  declare DIR
+  declare VERSION
+  declare VERSION_PATH
+  DIR="${PWD}"
+  [[ -d "${TEXENV_VERSIONS}" ]] && {
+    if [[ -f "${TEXENV_ROOT}/${TEX_GLOBAL_VERSION_FILE}" ]]; then
+      VERSION="$(cat "${TEXENV_ROOT}/${TEX_GLOBAL_VERSION_FILE}")"
+      VERSION_PATH="${TEXENV_ROOT}/${TEX_GLOBAL_VERSION_FILE}"
+    fi
+    while [[ "${DIR}" != "/" ]]; do
+      if [[ -f "${DIR}/${TEX_LOCAL_VERSION_FILE}" ]]; then
+        VERSION="$(cat "${DIR}/${TEX_LOCAL_VERSION_FILE}")"
+        VERSION_PATH="${DIR}/${TEX_LOCAL_VERSION_FILE}"
+        break
+      fi
+      DIR="${DIR%/*}"
+      [[ -z "${DIR}" ]] && break
+    done
+    [[ -n "${VERSION}" ]] && builtin echo "TinyTeX-Version: ${VERSION}"
+    [[ -n "${VERSION_PATH}" ]] && builtin echo "TinyTeX-Path: ${VERSION_PATH}"
+  }
+}
+
+# Execute command in current TeX Live version
+executeRun() {
+  declare VERSION
+  declare VERSION_PATH
+  declare TEX_VERSION_INFO
+  declare CMD
+  declare CMD_PATH
+  if [[ -d "${TEXENV_VERSIONS}" ]]; then
+    TEX_VERSION_INFO="$(resolveVersion)"
+    VERSION="$(awk -F": " '/TinyTeX-Version: /{print $2}' <<< "${TEX_VERSION_INFO}")"
+    VERSION_PATH="$(awk -F": " '/TinyTeX-Path: /{print $2}' <<< "${TEX_VERSION_INFO}")"
+    [[ -z "${VERSION}" || -z "${VERSION_PATH}" ]] && {
+      builtin echo "texenv: no version set (use 'texenv global <version>' or 'texenv local <version>')" >&2
+      exit 1
+    }
+    CMD="${1:-}"
+    shift || true
+    [[ -z "${CMD}" ]] && {
+      builtin echo "texenv: no command specified" >&2
+      exit 1
+    }
+    CMD_PATH="${TEXENV_VERSIONS}/${VERSION}/bin/${TEXENV_PLATFORM}/${CMD}"
+    [[ -x "${CMD_PATH}" ]] || {
+      builtin echo "texenv: command '${CMD}' not found in version '${VERSION}'" >&2
+      exit 1
+    }
+    export TEXMFHOME="${TEXMF_HOME}"
+    "${CMD_PATH}" "${@}"
+  else
+    builtin echo "texenv: no version set (use 'texenv global <version>' or 'texenv local <version>')" >&2
+    exit 1
+  fi
+}
+
+main() {
+  case "${1:-}" in
+    resolveVersion)
+      resolveVersion
+      ;;
+    executeRun)
+      shift || true
+      executeRun "${@}"
+      ;;
+  esac
+}
+
+main "${@}"

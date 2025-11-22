@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+
+declare TEXENV_DEBUG
+[[ "${TEXENV_DEBUG}" == 1 ]] && set -x
+set -euo pipefail
+
+# List installed TeX Live versions
+cmdVersions() {
+  declare VERSION
+  declare VERSION_PATH
+  declare TEX_VERSION_INFO
+  declare VERSIONS
+  declare SCRIPT_NAME
+  SCRIPT_NAME="${0##*/}"
+  case "${1:-}" in
+    -h | --help)
+      builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SCRIPT_NAME##*-} [options]"
+      builtin echo "List installed TeX Live versions"
+      builtin echo "Options:"
+      builtin echo "  -h, --help  Show this help message"
+      exit 0
+      ;;
+  esac
+  if [[ -d "${TEXENV_VERSIONS}" ]]; then
+    TEX_VERSION_INFO="$("$(type -P "texenv-libs" || true)" resolveVersion || true)"
+    VERSION="$(awk -F": " '/TinyTeX-Version: /{print $2}' <<< "${TEX_VERSION_INFO}")"
+    VERSION_PATH="$(awk -F": " '/TinyTeX-Path: /{print $2}' <<< "${TEX_VERSION_INFO}")"
+    VERSIONS="$(find "${TEXENV_VERSIONS}" -maxdepth 1 ! -name "${TEXENV_VERSIONS##*/}" -type d)"
+    [[ -z "${VERSIONS}" ]] && {
+      builtin echo "texenv: no versions installed" >&2
+      exit 1
+    }
+    sort <<< "${VERSIONS}" |
+      awk -F/ -v ver="${VERSION}" -v ver_path="${VERSION_PATH}" '{
+          if ($NF == ver) {
+            printf("* %s (set by %s)\n", $NF, ver_path)
+          } else {
+            printf("  %s\n", $NF)
+          }
+        }'
+  else
+    builtin echo "texenv: no versions installed" >&2
+    exit 1
+  fi
+}
+
+cmdVersions "${@}"

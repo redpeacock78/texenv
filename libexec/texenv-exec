@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+
+declare -r TEXENV_DEBUG
+[[ "${TEXENV_DEBUG}" == 1 ]] && set -x
+set -euo pipefail
+
+# Execute command in current TeX Live version
+cmdExec() {
+  declare cmdRepo
+  declare cmdRehash
+  declare libs
+  declare executeRun
+  declare SCRIPT_NAME
+  SCRIPT_NAME="${0##*/}"
+  libs="$(type -P "texenv-libs" || true)"
+  executeRun="${libs} executeRun"
+  case "${1:-}" in
+    -h | --help)
+      builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SCRIPT_NAME##*-} <cmd> [args]"
+      builtin echo "Execute command in current TeX Live version"
+      builtin echo "Options:"
+      builtin echo "  -h, --help  Show this help message"
+      exit 0
+      ;;
+  esac
+  {
+    if [[ "${1:-}" == "tlmgr" ]]; then
+      case "${2:-}" in
+        install | update | info | search)
+          cmdRepo="$(type -P "texenv-repo" || true)"
+          "${cmdRepo}" > /dev/null
+          ;;
+      esac
+    fi
+  } && {
+    ${executeRun} "${@}"
+  } && {
+    if [[ "${1:-}" == "tlmgr" ]]; then
+      case "${2:-}" in
+        install | update | uninstall | remove)
+          cmdRehash="$(type -P "texenv-rehash" || true)"
+          "${cmdRehash}"
+          ;;
+      esac
+    fi
+  }
+}
+
+cmdExec "${@}"

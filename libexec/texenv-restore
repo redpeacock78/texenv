@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+
+declare TEXENV_DEBUG
+[[ "${TEXENV_DEBUG}" == 1 ]] && set -x
+set -euo pipefail
+
+# Restore TeX packages from requirements file
+cmdRestore() {
+  declare FILE_NAME
+  declare TEX_VERSION
+  declare TEX_VERSION_INFO
+  declare LOCK_TEX_VERSION
+  declare SCRIPT_NAME
+  declare cmdExec
+  SCRIPT_NAME="${0##*/}"
+  case "${1:-}" in
+    -h | --help)
+      builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SCRIPT_NAME##*-} [options]"
+      builtin echo "Restore TeX packages from requirements file"
+      builtin echo "Options:"
+      builtin echo "  -h, --help  Show this help message"
+      exit 0
+      ;;
+  esac
+  if [[ -f "${TEX_REQUIREMENTS_LOCK_FILE}" ]]; then
+    FILE_NAME="${TEX_REQUIREMENTS_LOCK_FILE}"
+  elif [[ -f "${TEX_REQUIREMENTS_FILE}" ]]; then
+    FILE_NAME="${TEX_REQUIREMENTS_FILE}"
+  else
+    builtin echo "texenv: no requirements file found" >&2
+    exit 1
+  fi
+  TEX_VERSION_INFO="$("$(type -P "texenv-libs" || true)" resolveVersion || true)"
+  TEX_VERSION="$(awk -F": " '/TinyTeX-Version: /{print $2}' <<< "${TEX_VERSION_INFO}")"
+  LOCK_TEX_VERSION="$(awk -F ": " 'NR==1{print $2}' "${FILE_NAME}")"
+  [[ -n "${LOCK_TEX_VERSION:-}" ]] && [[ -n "${TEX_VERSION:-}" ]] && (("${TEX_VERSION}" < "${LOCK_TEX_VERSION}")) && {
+    builtin echo "texenv: TeX Live version ${TEX_VERSION} is older than the required version ${LOCK_TEX_VERSION}" >&2
+    exit 1
+  }
+  {
+    cmdExec="$(type -P "texenv-exec" || true)"
+    builtin echo "Restoring TeX packages from ${FILE_NAME}..."
+    "${cmdExec}" tlmgr install $(awk 'NR>1{print $0}' < "${FILE_NAME}" | tr '\n' ' ')
+  } || {
+    builtin echo "texenv: failed to restore TeX packages" >&2
+    exit 1
+  }
+}
+
+cmdRestore "${@}"

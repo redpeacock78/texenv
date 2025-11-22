@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+declare -r TEXENV_DEBUG
+[[ "${TEXENV_DEBUG}" == 1 ]] && set -x
+set -euo pipefail
+
+CMD_PATH="$(type -P "texenv-help" || true)"
+
+exec "${CMD_PATH}"

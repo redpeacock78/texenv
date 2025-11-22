@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+
+declare -r TEXENV_DEBUG
+[[ "${TEXENV_DEBUG}" == 1 ]] && set -x
+set -euo pipefail
+
+# Display texenv environment information
+cmdEnv() {
+  declare libs
+  declare kpsewhich
+  declare cmdRepo
+  declare cmdVersion
+  declare cmdVersions
+  declare SCRIPT_NAME
+  SCRIPT_NAME="${0##*/}"
+  libs="$(type -P "texenv-libs" || true)"
+  kpsewhich="${libs} executeRun kpsewhich"
+  cmdRepo="$(type -P "texenv-repo" || true)"
+  cmdVersion="$(type -P "texenv-version" || true)"
+  cmdVersions="$(type -P "texenv-versions" || true)"
+  cat << EOF
+TinyTeX: $( ("${cmdVersion}" 2> /dev/null) || echo "not set")
+TEXMF PATHS:
+  TEXHOME        = $( (${kpsewhich} -var-value=TEXMFHOME 2> /dev/null) || echo "${TEXMF_HOME}")
+  TEXMFVAR       = $( (${kpsewhich} -var-value=TEXMFVAR 2> /dev/null) || echo "not set")
+  TEXMFCONFIG    = $( (${kpsewhich} -var-value=TEXMFCONFIG 2> /dev/null) || echo "not set")
+  TEXMFLOCAL     = $( (${kpsewhich} -var-value=TEXMFLOCAL 2> /dev/null) || echo "not set")
+  TEXMFSYSVAR    = $( (${kpsewhich} -var-value=TEXMFSYSVAR 2> /dev/null) || echo "not set")
+  TEXMFSYSCONFIG = $( (${kpsewhich} -var-value=TEXMFSYSCONFIG 2> /dev/null) || echo "not set")
+  TEXMFDIST      = $( (${kpsewhich} -var-value=TEXMFDIST 2> /dev/null) || echo "not set")
+Active repositories:
+  $(
+    REPO="$("${cmdRepo}" -s 2> /dev/null || true)"
+    [[ -n "${REPO}" ]] && echo "${REPO}" || echo "not set"
+  )
+PATH (${SCRIPT_NAME%%-*}-related):
+$(
+    PATH_LIST="$(awk -F : '{for(i=1;i<=NF;i++) print $i}' <<< "${PATH}")"
+    echo "  bin:   ${TEXENV_BIN}$(grep -qxF "${TEXENV_BIN}" <<< "${PATH_LIST}" || echo "   (not set in \$PATH)")"
+    echo "  shims: ${TEXENV_SHIMS}$(grep -qxF "${TEXENV_SHIMS}" <<< "${PATH_LIST}" || echo " (not set in \$PATH)")"
+  )
+Installed versions:
+$( ("${cmdVersions}" 2> /dev/null) || echo "  not installed")
+EOF
+  exit 0
+}
+
+cmdEnv

@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+
+declare TEXENV_DEBUG
+[[ "${TEXENV_DEBUG}" == 1 ]] && set -x
+set -euo pipefail
+shopt -s dotglob
+
+# Rebuild shims for installed TeX Live versions
+cmdRehash() {
+  declare CMD_LIST
+  declare SCRIPT_NAME
+  SCRIPT_NAME="${0##*/}"
+  case "${1:-}" in
+    -h | --help)
+      builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SCRIPT_NAME##*-}"
+      builtin echo "Rebuild shims for installed TeX Live versions"
+      builtin echo "Options:"
+      builtin echo "  -h, --help  Show this help message"
+      exit 0
+      ;;
+  esac
+  {
+    [[ ! -d "${TEXENV_VERSIONS}" ]] && {
+      builtin echo "texenv: no versions installed" >&2
+      exit 1
+    }
+    rm -rf "${TEXENV_SHIMS:?}"/* &&
+      CMD_LIST="$(find "${TEXENV_VERSIONS}" -path "*/bin/${TEXENV_PLATFORM}/*" ! -type d -exec test -e {} \; -print)"
+    awk -F/ '!a[$NF]++{print $NF}' <<< "${CMD_LIST}" |
+      while read -r CMD; do
+        declare SHIM_PATH="${TEXENV_SHIMS}/${CMD}"
+        {
+          builtin echo "#!/usr/bin/env bash"
+          builtin echo "[[ \"\${TEXENV_DEBUG}\" == 1 ]] && set -x"
+          builtin echo "set -euo pipefail"
+          builtin echo "shim() {"
+          builtin echo "  declare -r CMD_PATH=\"\$(builtin cd \"\${0%/*}\" && builtin echo \"\${PWD/shims/bin}\")\""
+          builtin echo "  declare -r CMD_NAME=\"\${0##*/}\""
+          builtin echo "  exec \"\${CMD_PATH}/texenv\" exec \"\${CMD_NAME}\" \"\${@}\""
+          builtin echo "}"
+          builtin echo "shim \"\${@}\""
+        } > "${SHIM_PATH}" &&
+          chmod +x "${SHIM_PATH}"
+      done
+    builtin echo "${CMD_LIST}" > "${TEX_CMD_LIST_CACHE}"
+  } || {
+    builtin echo "texenv: failed to rehash shims" >&2
+    exit 1
+  }
+}
+
+cmdRehash "${@}"
