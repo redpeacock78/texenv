@@ -16,6 +16,11 @@ cmdInstall() {
   declare SCRIPT_NAME
   declare cmdRehash
   SCRIPT_NAME="${0##*/}"
+  cmdRehash="$(type -P 'texenv-rehash' || true)"
+  [[ -z "${cmdRehash}" ]] && {
+    builtin echo "texenv: required component(s) missing" >&2
+    exit 1
+  }
   versionList() {
     curl -sL "https://api.github.com/repos/rstudio/tinytex-releases/releases" |
       awk '/"tag_name"/{gsub(/\"|\"v|\",/, "");print $2}' |
@@ -80,7 +85,6 @@ cmdInstall() {
   [[ "${FORCE_INSTALL:-0}" == 1 ]] && {
     builtin echo "Reinstalling existing version ${VERSION}..."
   }
-  cmdRehash="$(type -P 'texenv-rehash' || true)"
   mkdir -p "${TEX_DIR}"
   curl -L -f --retry 10 --retry-delay 30 -# "${TEX_URL}" -o "${TEX_TMP}"
   tar xf "${TEX_TMP}" -C "${TEX_DIR}" --strip-components=1

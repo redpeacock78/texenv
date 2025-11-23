@@ -13,7 +13,13 @@ cmdExec() {
   declare SCRIPT_NAME
   SCRIPT_NAME="${0##*/}"
   libs="$(type -P "texenv-libs" || true)"
+  cmdRepo="$(type -P "texenv-repo" || true)"
+  cmdRehash="$(type -P "texenv-rehash" || true)"
   executeRun="${libs} executeRun"
+  [[ -z "${executeRun}" || -z "${cmdRepo}" || -z "${cmdRehash}" ]] && {
+    builtin echo "texenv: required component(s) missing" >&2
+    exit 1
+  }
   case "${1:-}" in
     -h | --help)
       builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SCRIPT_NAME##*-} <cmd> [args]"
@@ -27,7 +33,6 @@ cmdExec() {
     if [[ "${1:-}" == "tlmgr" ]]; then
       case "${2:-}" in
         install | update | info | search)
-          cmdRepo="$(type -P "texenv-repo" || true)"
           "${cmdRepo}" > /dev/null
           ;;
       esac
@@ -38,7 +43,6 @@ cmdExec() {
     if [[ "${1:-}" == "tlmgr" ]]; then
       case "${2:-}" in
         install | update | uninstall | remove)
-          cmdRehash="$(type -P "texenv-rehash" || true)"
           "${cmdRehash}"
           ;;
       esac

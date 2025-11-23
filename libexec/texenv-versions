@@ -11,7 +11,13 @@ cmdVersions() {
   declare TEX_VERSION_INFO
   declare VERSIONS
   declare SCRIPT_NAME
+  declare libs
   SCRIPT_NAME="${0##*/}"
+  libs="$(type -P "texenv-libs" || true)"
+  [[ -z "${libs}" ]] && {
+    builtin echo "texenv: required component(s) missing" >&2
+    exit 1
+  }
   case "${1:-}" in
     -h | --help)
       builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SCRIPT_NAME##*-} [options]"
@@ -22,7 +28,7 @@ cmdVersions() {
       ;;
   esac
   if [[ -d "${TEXENV_VERSIONS}" ]]; then
-    TEX_VERSION_INFO="$("$(type -P "texenv-libs" || true)" resolveVersion || true)"
+    TEX_VERSION_INFO="$("${libs}" resolveVersion || true)"
     VERSION="$(awk -F": " '/TinyTeX-Version: /{print $2}' <<< "${TEX_VERSION_INFO}")"
     VERSION_PATH="$(awk -F": " '/TinyTeX-Path: /{print $2}' <<< "${TEX_VERSION_INFO}")"
     VERSIONS="$(find "${TEXENV_VERSIONS}" -maxdepth 1 ! -name "${TEXENV_VERSIONS##*/}" -type d)"

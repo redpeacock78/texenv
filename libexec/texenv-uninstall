@@ -10,6 +10,11 @@ cmdUninstall() {
   declare SCRIPT_NAME
   declare cmdRehash
   SCRIPT_NAME="${0##*/}"
+  cmdRehash="$(type -P 'texenv-rehash' || true)"
+  [[ -z "${cmdRehash}" ]] && {
+    builtin echo "texenv: required component(s) missing" >&2
+    exit 1
+  }
   case "${1:-}" in
     -h | --help)
       builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SCRIPT_NAME##*-} [options] <version>"
@@ -35,7 +40,6 @@ cmdUninstall() {
     exit 1
   }
   {
-    cmdRehash="$(type -P 'texenv-rehash' || true)"
     builtin echo "Uninstalling version ${VERSION}..."
     rm -rf "${TEXENV_VERSIONS}/${VERSION:?}"
     "${cmdRehash}"

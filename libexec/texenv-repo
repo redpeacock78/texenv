@@ -25,6 +25,10 @@ cmdRepo() {
   libs="$(type -P "texenv-libs" || true)"
   executeRun="${libs} executeRun"
   resolveVersion="${libs} resolveVersion"
+  [[ -z "${libs}" ]] && {
+    builtin echo "texenv: required component(s) missing" >&2
+    exit 1
+  }
   case "${1:-}" in
     -s | --show)
       ${executeRun} tlmgr option repository | awk -F": " '{print $2}'

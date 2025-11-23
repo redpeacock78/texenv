@@ -18,6 +18,10 @@ cmdEnv() {
   cmdRepo="$(type -P "texenv-repo" || true)"
   cmdVersion="$(type -P "texenv-version" || true)"
   cmdVersions="$(type -P "texenv-versions" || true)"
+  [[ -z "${libs}" || -z "${cmdRepo}" || -z "${cmdVersion}" || -z "${cmdVersions}" ]] && {
+    builtin echo "texenv: required component(s) missing" >&2
+    exit 1
+  }
   cat << EOF
 TinyTeX: $( ("${cmdVersion}" 2> /dev/null) || echo "not set")
 TEXMF PATHS:

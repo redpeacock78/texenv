@@ -11,7 +11,13 @@ cmdWhere() {
   declare VERSION
   declare TEX_VERSION_INFO
   declare SCRIPT_NAME
+  declare libs
   SCRIPT_NAME="${0##*/}"
+  libs="$(type -P "texenv-libs" || true)"
+  [[ -z "${libs}" ]] && {
+    builtin echo "texenv: required component(s) missing" >&2
+    exit 1
+  }
   case "${1:-}" in
     -h | --help)
       builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SCRIPT_NAME##*-} <cmd>"
@@ -26,7 +32,7 @@ cmdWhere() {
     builtin echo "texenv: no command specified" >&2
     exit 1
   }
-  TEX_VERSION_INFO="$("$(type -P "texenv-libs" || true)" resolveVersion || true)"
+  TEX_VERSION_INFO="$("${libs}" resolveVersion || true)"
   VERSION="$(awk -F": " '/TinyTeX-Version: /{print $2}' <<< "${TEX_VERSION_INFO}")"
   [[ -z "${VERSION}" ]] && {
     builtin echo "texenv: no version set (use 'texenv global <version>' or 'texenv local <version>')" >&2

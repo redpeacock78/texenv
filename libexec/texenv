@@ -103,6 +103,10 @@ main() {
   declare CMD_PATH
   CMD_NAME="${1:-}"
   CMD_PATH="$(type -P "texenv-${CMD_NAME}" || true)"
+  [[ -z "${CMD_PATH}" ]] && {
+    builtin echo "texenv: required component(s) missing" >&2
+    exit 1
+  }
   shift || true
   case "${CMD_NAME:-}" in
     init) exec "${CMD_PATH}" "${@}" ;;
