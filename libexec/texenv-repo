@@ -89,15 +89,19 @@ cmdRepo() {
     REPO="${UNIQUE_REPO}"
   else
     VERSION_YEAR="${VERSION%%.*}"
-    REPO="https://ctan.math.illinois.edu/systems/texlive/tlnet"
     CURRENT_YEAR="$(date +%Y)"
     if [[ "${VERSION_YEAR}" == "${CURRENT_YEAR}" ]]; then
+      REPO="https://ctan.math.illinois.edu/systems/texlive/tlnet"
       [[ "${REPO}" == "${CURRENT_REPO}" ]] && {
         builtin echo "texenv: Repository is already set to the latest TeX Live repository."
         return 0
       }
     else
       REPO="https://ftp.math.utah.edu/pub/tex/historic/systems/texlive/${VERSION_YEAR}/tlnet-final"
+      [[ "${REPO}" == "${CURRENT_REPO}" ]] && {
+        builtin echo "texenv: Repository is already set to the latest TeX Live repository."
+        return 0
+      }
     fi
   fi
   {
