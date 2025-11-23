@@ -4,6 +4,7 @@ declare -r TEXENV_DEBUG
 [[ "${TEXENV_DEBUG}" == 1 ]] && set -x
 set -euo pipefail
 
+# Display current TeX Live version
 resolveVersion() {
   declare DIR
   declare VERSION
