@@ -9,7 +9,7 @@ resolveVersion() {
   declare DIR
   declare VERSION
   declare VERSION_PATH
-  DIR="${PWD}"
+  DIR="${TEXENV_DIR}"
   if [[ -n "${TEXENV_VERSION}" ]]; then
     builtin echo "TinyTeX-Version: ${TEXENV_VERSION}"
     builtin echo "TinyTeX-Path: ${SHELL}"
