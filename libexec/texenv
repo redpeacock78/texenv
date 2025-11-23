@@ -108,34 +108,12 @@ main() {
   CMD_NAME="${1:-}"
   CMD_PATH="$(type -P "texenv-${CMD_NAME}" || true)"
   [[ -z "${CMD_PATH}" ]] && {
-    builtin echo "texenv: required component(s) missing" >&2
+    [[ -n "${CMD_NAME}" ]] && builtin echo "texenv: unknown command '${CMD_NAME}'" >&2
+    builtin echo "Run '${0##*/} help' for usage." >&2
     exit 1
   }
   shift || true
-  case "${CMD_NAME:-}" in
-    init) exec "${CMD_PATH}" "${@}" ;;
-    install) exec "${CMD_PATH}" "${@}" ;;
-    uninstall) exec "${CMD_PATH}" "${@}" ;;
-    version) exec "${CMD_PATH}" "${@}" ;;
-    versions) exec "${CMD_PATH}" "${@}" ;;
-    global) exec "${CMD_PATH}" "${@}" ;;
-    local) exec "${CMD_PATH}" "${@}" ;;
-    repo) exec "${CMD_PATH}" "${@}" ;;
-    exec) exec "${CMD_PATH}" "${@}" ;;
-    rehash) exec "${CMD_PATH}" "${@}" ;;
-    freeze) exec "${CMD_PATH}" "${@}" ;;
-    restore) exec "${CMD_PATH}" "${@}" ;;
-    which) exec "${CMD_PATH}" "${@}" ;;
-    where) exec "${CMD_PATH}" "${@}" ;;
-    whence) exec "${CMD_PATH}" "${@}" ;;
-    env) exec "${CMD_PATH}" ;;
-    help | -h | --help) exec "${CMD_PATH}" ;;
-    *)
-      [[ -n "${CMD_NAME}" ]] && builtin echo "texenv: unknown command '${CMD_NAME}'" >&2
-      builtin echo "Run '${0##*/} help' for usage." >&2
-      exit 1
-      ;;
-  esac
+  exec "${CMD_PATH}" "${@}"
 }
 
 main "${@}"
