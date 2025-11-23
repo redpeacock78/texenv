@@ -102,8 +102,8 @@ cmdRepo() {
   fi
   {
     echo "texenv: Setting tlmgr repository to ${REPO}..."
-    ${executeRun} tlmgr option repository "${REPO}" &&
-      [[ "${MIRROR:-}" == 1 ]] && {
+    ${executeRun} tlmgr option repository "${REPO}"
+    [[ "${MIRROR:-}" == 1 ]] && {
       mkdir -p "${TEXENV_CONFIG}/${VERSION}" &&
         builtin echo "${REPO}" > "${MIRROR_FILE}"
     }
