@@ -46,6 +46,7 @@ else
   builtin echo "texenv: unsupported OS '${OS_NAME}'" >&2
   exit 1
 fi
+declare -r TEXENV_VERSION="${TEXENV_VERSION:-}"
 declare -r TEXENV_ROOT="${TEXENV_ROOT:-${HOME}/.texenv}"
 declare -r TEXENV_VERSIONS="${TEXENV_ROOT}/versions"
 declare -r TEXENV_CONFIG="${TEXENV_ROOT}/config"
@@ -58,6 +59,7 @@ declare -r TEX_REQUIREMENTS_FILE="tex-require.txt"
 declare -r TEX_REQUIREMENTS_LOCK_FILE="tex-require.lock"
 declare -r TEX_CMD_LIST_CACHE="${TEXENV_CONFIG}/cmd_list_cache.txt"
 
+export TEXENV_VERSION
 export TEXENV_PLATFORM
 export TINYTEX_ARCHIVE_EXT
 export TEXENV_ROOT
