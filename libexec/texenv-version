@@ -30,11 +30,11 @@ cmdVersion() {
     TEX_VERSION_INFO="$("${libs}" resolveVersion || true)"
     VERSION="$(awk -F": " '/TinyTeX-Version: /{print $2}' <<< "${TEX_VERSION_INFO}")"
     VERSION_PATH="$(awk -F": " '/TinyTeX-Path: /{print $2}' <<< "${TEX_VERSION_INFO}")"
-    [[ -z "${VERSION}" || -z "${VERSION_PATH}" ]] && {
+    [[ -z "${VERSION}" ]] && {
       builtin echo "texenv: no version set (use 'texenv global <version>' or 'texenv local <version>')" >&2
       exit 1
     }
-    builtin echo "${VERSION} (set by ${VERSION_PATH})"
+    builtin echo "${VERSION}$([[ -n "${VERSION_PATH}" ]] && builtin echo " (set by ${VERSION_PATH})")"
   else
     builtin echo "texenv: no version set (use 'texenv global <version>' or 'texenv local <version>')" >&2
     exit 1
