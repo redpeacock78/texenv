@@ -93,5 +93,6 @@ config/
 texmf/
 version
 
+.tex-version
 tex-require.txt
 tex-require.lock
