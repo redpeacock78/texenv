@@ -35,12 +35,19 @@ perl -mFile::Find /dev/null || {
 }
 
 OS_NAME="$(uname)"
+ARCH="$(uname -m)"
 declare -r OS_NAME
+declare -r ARCH
 if [[ "${OS_NAME}" == "Darwin" ]]; then
   declare -r TEXENV_PLATFORM="universal-darwin"
   declare -r TINYTEX_ARCHIVE_EXT="tgz"
 elif [[ "${OS_NAME}" == "Linux" ]]; then
-  declare -r TEXENV_PLATFORM="x86_64-linux"
+  if [[ "${ARCH}" == "x86_64" ]]; then
+    declare -r TEXENV_PLATFORM="x86_64-linux"
+  else
+    builtin echo "texenv: unsupported architecture '${ARCH}' on Linux" >&2
+    exit 1
+  fi
   declare -r TINYTEX_ARCHIVE_EXT="tar.gz"
 else
   builtin echo "texenv: unsupported OS '${OS_NAME}'" >&2
