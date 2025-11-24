@@ -50,7 +50,7 @@ elif [[ "${OS_NAME}" == "Linux" ]]; then
   fi
   declare -r TINYTEX_ARCHIVE_EXT="tar.gz"
 else
-  builtin echo "texenv: unsupported OS '${OS_NAME}'" >&2
+  builtin echo "texenv: unsupported OS '${ARCH}-${OS_NAME}'" >&2
   exit 1
 fi
 declare -r TEXENV_VERSION="${TEXENV_VERSION:-}"
