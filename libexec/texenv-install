@@ -9,6 +9,7 @@ cmdInstall() {
   declare TEX_DIR
   declare TEX_URL
   declare TEX_TMP
+  declare TINYTEX_ARCHIVE_NAME
   declare VERSION
   declare VERSION_LIST
   declare FORCE_INSTALL
@@ -68,9 +69,11 @@ cmdInstall() {
     exit 1
   }
   if [[ "${VERSION}" == "daily" ]]; then
-    TEX_URL="https://github.com/rstudio/tinytex-releases/releases/download/daily/TinyTeX-1.${TINYTEX_ARCHIVE_EXT}"
+    TINYTEX_ARCHIVE_NAME="TinyTeX-1.${TINYTEX_ARCHIVE_EXT}"
+    TEX_URL="https://github.com/rstudio/tinytex-releases/releases/download/daily/${TINYTEX_ARCHIVE_NAME}"
   else
-    TEX_URL="https://github.com/rstudio/tinytex-releases/releases/download/v${VERSION}/TinyTeX-1-v${VERSION}.${TINYTEX_ARCHIVE_EXT}"
+    TINYTEX_ARCHIVE_NAME="TinyTeX-1-v${VERSION}.${TINYTEX_ARCHIVE_EXT}"
+    TEX_URL="https://github.com/rstudio/tinytex-releases/releases/download/v${VERSION}/${TINYTEX_ARCHIVE_NAME}"
   fi
   TEX_TMP="$(mktemp "/tmp/TinyTeX.XXXXXX.${TINYTEX_ARCHIVE_EXT}")"
   cleanup() {
@@ -86,6 +89,7 @@ cmdInstall() {
     builtin echo "Reinstalling existing version ${VERSION}..."
   }
   mkdir -p "${TEX_DIR}"
+  builtin echo "Downloading TinyTeX: ${TINYTEX_ARCHIVE_NAME}"
   curl -L -f --retry 10 --retry-delay 30 -# "${TEX_URL}" -o "${TEX_TMP}"
   tar xf "${TEX_TMP}" -C "${TEX_DIR}" --strip-components=1
   rm -rf "${TEX_TMP}"
