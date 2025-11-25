@@ -56,7 +56,13 @@ cmdRepo() {
   }
   regex='^(https?|ftp|file)://.*'
   MIRROR_FILE="${TEXENV_CONFIG}/${VERSION}/mirror_repo.txt"
-  [[ -f "${MIRROR_FILE}" ]] && UNIQUE_REPO="$(cat "${MIRROR_FILE}")"
+  [[ -f "${MIRROR_FILE}" ]] && {
+    UNIQUE_REPO="$(cat "${MIRROR_FILE}")"
+    [[ -z "${UNIQUE_REPO}" ]] && {
+      builtin echo "texenv: no mirror repository specified" >&2
+      exit 1
+    }
+  }
   CURRENT_REPO="$(${executeRun} tlmgr option repository | awk -F": " '{print $2}')"
   if [[ "${MIRROR:-}" == 1 ]]; then
     [[ -d "${TEXENV_CONFIG}" ]] || {
