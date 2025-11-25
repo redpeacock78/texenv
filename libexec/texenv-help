@@ -26,6 +26,8 @@ Commands:
   where <cmd>         Show path to command in current TeX Live version
   whence <cmd>        Show path to command in all installed TeX Live versions
   env                 Display ${SCRIPT_NAME%%-*} environment information
+  root                Show ${SCRIPT_NAME%%-*} root directory
+  shims               Show executable file(s) from ${SCRIPT_NAME%%-*} shims directory
   help                Show this help message
 EOF
   exit 0
