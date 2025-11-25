@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+declare TEXENV_DEBUG
+[[ "${TEXENV_DEBUG}" == 1 ]] && set -x
+set -euo pipefail
+
+cmdShims() {
+  declare RESULT
+  RESULT="$(find "${TEXENV_SHIMS}" -maxdepth 1 -type f)"
+  [[ -z "${RESULT}" ]] && {
+    builtin echo "texenv: no shims generated" >&2
+    exit 1
+  }
+  sort <<< "${RESULT}"
+}
+
+cmdShims
