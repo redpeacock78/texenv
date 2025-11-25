@@ -45,7 +45,7 @@ elif [[ "${OS_NAME}" == "Linux" ]]; then
   if [[ "${ARCH}" == "x86_64" ]]; then
     declare -r TEXENV_PLATFORM="x86_64-linux"
   else
-    builtin echo "texenv: unsupported architecture '${ARCH}' on Linux" >&2
+    builtin echo "texenv: unsupported architecture '${ARCH}' on ${OS_NAME}" >&2
     exit 1
   fi
   declare -r TINYTEX_ARCHIVE_EXT="tar.gz"
@@ -53,6 +53,7 @@ else
   builtin echo "texenv: unsupported OS '${ARCH}-${OS_NAME}'" >&2
   exit 1
 fi
+
 declare -r TEXENV_VERSION="${TEXENV_VERSION:-}"
 declare -r TEXENV_DIR="${TEXENV_DIR:-${PWD}}"
 declare -r TEXENV_ROOT="${TEXENV_ROOT:-${HOME}/.texenv}"
