@@ -23,12 +23,30 @@ cmdInstall() {
     exit 1
   }
   versionList() {
-    curl -sL "https://api.github.com/repos/rstudio/tinytex-releases/releases" |
+    declare PER_PAGE
+    if [[ "${1:-}" == "-a" || "${1:-}" == "--all" ]]; then
+      PER_PAGE="?per_page=100"
+    fi
+    curl -sL "https://api.github.com/repos/rstudio/tinytex-releases/releases${PER_PAGE:-}" |
       awk '/"tag_name"/{gsub(/\"|\"v|\",/, "");print $2}' |
       awk '{a[NR]=$0}END{for(i=NR;i>0;i--){print a[i]}}'
   }
   case "${1:-}" in
     -l | --list)
+      case "${2:-}" in
+        -a | --all)
+          versionList "${2}"
+          exit 0
+          ;;
+        -h | --help)
+          builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SCRIPT_NAME##*-} [-l|--list] [options]"
+          builtin echo "List available TeX Live versions"
+          builtin echo "Options:"
+          builtin echo "  -a, --all   List all available versions"
+          builtin echo "  -h, --help  Show this help message"
+          exit 0
+          ;;
+      esac
       versionList
       exit 0
       ;;
