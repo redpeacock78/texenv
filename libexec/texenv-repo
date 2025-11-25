@@ -11,7 +11,6 @@ cmdRepo() {
   declare resolveVersion
   declare VERSION
   declare REPO
-  declare TEX_VERSION_INFO
   declare VERSION_YEAR
   declare CURRENT_REPO
   declare CURRENT_YEAR
@@ -88,9 +87,9 @@ cmdRepo() {
     }
     REPO="${UNIQUE_REPO}"
   else
-    VERSION_YEAR="${VERSION%%.*}"
+    VERSION_YEAR="$(${executeRun} tlmgr --version | awk 'END{print $5}')"
     CURRENT_YEAR="$(date +%Y)"
-    if [[ "${VERSION_YEAR}" == "${CURRENT_YEAR}" ]]; then
+    if [[ "${VERSION_YEAR:-}" == "${CURRENT_YEAR}" ]]; then
       REPO="https://ctan.math.illinois.edu/systems/texlive/tlnet"
       [[ "${REPO}" == "${CURRENT_REPO}" ]] && {
         builtin echo "texenv: Repository is already set to the latest TeX Live repository."
