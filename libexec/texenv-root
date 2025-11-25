@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+declare TEXENV_DEBUG
+[[ "${TEXENV_DEBUG}" == 1 ]] && set -x
+set -euo pipefail
+
+cmdRoot() {
+  [[ -z "${TEXENV_ROOT}" ]] && {
+    builtin echo "texenv: TEXENV_ROOT is not set" >&2
+    exit 1
+  }
+  builtin echo "${TEXENV_ROOT}"
+}
+
+cmdRoot
