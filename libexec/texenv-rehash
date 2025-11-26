@@ -3,12 +3,13 @@
 declare TEXENV_DEBUG
 [[ "${TEXENV_DEBUG}" == 1 ]] && set -x
 set -euo pipefail
-shopt -s dotglob
 
 # Rebuild shims for installed TeX Live versions
 cmdRehash() {
   declare CMD_LIST
   declare SCRIPT_NAME
+  declare TMP_SHIMS
+  declare BACKUP_SHIMS
   SCRIPT_NAME="${0##*/}"
   case "${1:-}" in
     -h | --help)
@@ -19,34 +20,43 @@ cmdRehash() {
       exit 0
       ;;
   esac
-  {
-    [[ ! -d "${TEXENV_VERSIONS}" ]] && {
-      builtin echo "texenv: no versions installed" >&2
-      exit 1
-    }
-    rm -rf "${TEXENV_SHIMS:?}"/* &&
-      CMD_LIST="$(find "${TEXENV_VERSIONS}" -path "*/bin/${TEXENV_PLATFORM}/*" ! -type d -exec test -e {} \; -print)"
-    awk -F/ '!a[$NF]++{print $NF}' <<< "${CMD_LIST}" |
-      while read -r CMD; do
-        declare SHIM_PATH="${TEXENV_SHIMS}/${CMD}"
-        {
-          builtin echo "#!/usr/bin/env bash"
-          builtin echo "[[ \"\${TEXENV_DEBUG}\" == 1 ]] && set -x"
-          builtin echo "set -euo pipefail"
-          builtin echo "shim() {"
-          builtin echo "  declare -r CMD_PATH=\"\$(builtin cd \"\${0%/*}\" && builtin echo \"\${PWD/shims/bin}\")\""
-          builtin echo "  declare -r CMD_NAME=\"\${0##*/}\""
-          builtin echo "  exec \"\${CMD_PATH}/texenv\" exec \"\${CMD_NAME}\" \"\${@}\""
-          builtin echo "}"
-          builtin echo "shim \"\${@}\""
-        } > "${SHIM_PATH}" &&
-          chmod +x "${SHIM_PATH}"
-      done
-    builtin echo "${CMD_LIST}" > "${TEX_CMD_LIST_CACHE}"
-  } || {
-    builtin echo "texenv: failed to rehash shims" >&2
+  [[ ! -d "${TEXENV_VERSIONS}" ]] && {
+    builtin echo "texenv: no versions installed" >&2
     exit 1
   }
+  cleanup() {
+    [[ -n "${BACKUP_SHIMS:-}" && -d "${BACKUP_SHIMS}" ]] && mv "${BACKUP_SHIMS}" "${TEXENV_SHIMS}"
+    [[ -n "${TMP_SHIMS:-}" && -d "${TMP_SHIMS}" ]] && rm -rf "${TMP_SHIMS}"
+    builtin echo "texenv: rehash failed" >&2
+    exit 1
+  }
+  trap cleanup ERR INT TERM
+  [[ -d "${TEXENV_SHIMS}" ]] && {
+    BACKUP_SHIMS="${TEXENV_SHIMS}.bak.${$}"
+    mv "${TEXENV_SHIMS}" "${BACKUP_SHIMS}"
+  }
+  TMP_SHIMS="$(mktemp -d "${TEXENV_ROOT}/.temp_shims_XXXXXX")"
+  CMD_LIST="$(find "${TEXENV_VERSIONS}" -path "*/bin/${TEXENV_PLATFORM}/*" ! -type d -exec test -e {} \; -print)"
+  awk -F/ '!a[$NF]++{print $NF}' <<< "${CMD_LIST}" |
+    while read -r CMD; do
+      declare SHIM_PATH="${TMP_SHIMS}/${CMD}"
+      {
+        builtin echo "#!/usr/bin/env bash"
+        builtin echo "[[ \"\${TEXENV_DEBUG}\" == 1 ]] && set -x"
+        builtin echo "set -euo pipefail"
+        builtin echo "shim() {"
+        builtin echo "  declare -r CMD_PATH=\"\$(builtin cd \"\${0%/*}\" && builtin echo \"\${PWD/shims/bin}\")\""
+        builtin echo "  declare -r CMD_NAME=\"\${0##*/}\""
+        builtin echo "  exec \"\${CMD_PATH}/texenv\" exec \"\${CMD_NAME}\" \"\${@}\""
+        builtin echo "}"
+        builtin echo "shim \"\${@}\""
+      } > "${SHIM_PATH}" &&
+        chmod +x "${SHIM_PATH}"
+    done
+  builtin echo "${CMD_LIST}" > "${TEX_CMD_LIST_CACHE}"
+  mv "${TMP_SHIMS}" "${TEXENV_SHIMS}"
+  [[ -n "${BACKUP_SHIMS:-}" && -d "${BACKUP_SHIMS}" ]] && rm -rf "${BACKUP_SHIMS:?}"
+  trap - ERR INT TERM
 }
 
 cmdRehash "${@}"
