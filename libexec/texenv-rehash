@@ -24,9 +24,14 @@ cmdRehash() {
     builtin echo "texenv: no versions installed" >&2
     exit 1
   }
+  CMD_LIST="$(find "${TEXENV_VERSIONS}" -path "*/bin/${TEXENV_PLATFORM}/*" ! -type d -exec bash -c 'for f in "${@}"; do [[ -x "${f}" ]] && builtin echo "${f}"; done' _ {} +)"
+  [[ -z "${CMD_LIST}" ]] && {
+    builtin echo "texenv: no commands found in installed versions" >&2
+    exit 1
+  }
   cleanup() {
     [[ -n "${BACKUP_SHIMS:-}" && -d "${BACKUP_SHIMS}" ]] && mv "${BACKUP_SHIMS}" "${TEXENV_SHIMS}"
-    [[ -n "${TMP_SHIMS:-}" && -d "${TMP_SHIMS}" ]] && rm -rf "${TMP_SHIMS}"
+    [[ -n "${TMP_SHIMS:-}" && -d "${TMP_SHIMS}" ]] && rm -rf "${TMP_SHIMS:?}"
     builtin echo "texenv: rehash failed" >&2
     exit 1
   }
@@ -36,7 +41,6 @@ cmdRehash() {
     mv "${TEXENV_SHIMS}" "${BACKUP_SHIMS}"
   }
   TMP_SHIMS="$(mktemp -d "${TEXENV_ROOT}/.temp_shims_XXXXXX")"
-  CMD_LIST="$(find "${TEXENV_VERSIONS}" -path "*/bin/${TEXENV_PLATFORM}/*" ! -type d -exec test -e {} \; -print)"
   awk -F/ '!a[$NF]++{print $NF}' <<< "${CMD_LIST}" |
     while read -r CMD; do
       declare SHIM_PATH="${TMP_SHIMS}/${CMD}"
@@ -50,8 +54,8 @@ cmdRehash() {
         builtin echo "  exec \"\${CMD_PATH}/texenv\" exec \"\${CMD_NAME}\" \"\${@}\""
         builtin echo "}"
         builtin echo "shim \"\${@}\""
-      } > "${SHIM_PATH}" &&
-        chmod +x "${SHIM_PATH}"
+      } > "${SHIM_PATH}"
+      chmod +x "${SHIM_PATH}"
     done
   builtin echo "${CMD_LIST}" > "${TEX_CMD_LIST_CACHE}"
   mv "${TMP_SHIMS}" "${TEXENV_SHIMS}"
