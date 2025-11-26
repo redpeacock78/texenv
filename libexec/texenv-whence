@@ -31,7 +31,7 @@ cmdWhence() {
   if [[ -f "${TEX_CMD_LIST_CACHE}" ]]; then
     RESULT="$(grep "/${CMD_NAME}$" "${TEX_CMD_LIST_CACHE}")"
   else
-    RESULT="$(find "${TEXENV_VERSIONS}" -path "*/bin/${TEXENV_PLATFORM}/${CMD_NAME}" ! -type d -exec test -e {} \; -print)"
+    RESULT="$(find "${TEXENV_VERSIONS}" -path "*/bin/${TEXENV_PLATFORM}/${CMD_NAME}" ! -type d -exec bash -c 'for f in "${@}"; do [[ -x "${f}" ]] && builtin echo "${f}"; done' _ {} +)"
   fi
   [[ -z "${RESULT}" ]] && {
     builtin echo "texenv: command '${CMD_NAME}' not found" >&2
