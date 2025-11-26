@@ -5,5 +5,8 @@ declare -r TEXENV_DEBUG
 set -euo pipefail
 
 CMD_PATH="$(type -P "texenv-help" || true)"
-
+[[ -z "${CMD_PATH}" ]] && {
+  builtin echo "texenv: help component missing" >&2
+  exit 1
+}
 exec "${CMD_PATH}"
