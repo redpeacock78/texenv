@@ -12,6 +12,22 @@ cmdInit() {
     -)
       builtin echo "export PATH=\"${TEXENV_BIN}:\${PATH}\""
       builtin echo "export PATH=\"${TEXENV_SHIMS}:\${PATH}\""
+      builtin echo "export TEXENV_VERSION=\"${SHELL}\""
+      builtin echo "texenv() {"
+      builtin echo "  local CMD"
+      builtin echo "  CMD=\"\${1}\""
+      builtin echo "  if [[ \"\${#}\" -gt 0 ]]; then"
+      builtin echo "    shift"
+      builtin echo "  fi"
+      builtin echo "  case \"\${CMD}\" in"
+      builtin echo "    shell)"
+      builtin echo "      eval \"\$(texenv-shell \"\${@}\")\""
+      builtin echo "      ;;"
+      builtin echo "    *)"
+      builtin echo "      command texenv \"\${CMD}\" \"\${@}\""
+      builtin echo "      ;;"
+      builtin echo "  esac"
+      builtin echo "}"
       exit 0
       ;;
     -h | --help)
