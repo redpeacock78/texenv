@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+
+declare -r TEXENV_DEBUG
+[[ "${TEXENV_DEBUG}" == 1 ]] && set -x
+set -euo pipefail
+
+cmdShell() {
+  declare INSTALLED_VERSIONS
+  if [[ -n "${1:-}" ]]; then
+    INSTALLED_VERSIONS="$(find "${TEXENV_VERSIONS}" -maxdepth 1 ! -name "${TEXENV_VERSIONS##*/}" -type d | awk -F/ '{print $NF}')"
+    if ! grep -qxF "${1}" <<< "${INSTALLED_VERSIONS}" 2> /dev/null; then
+      builtin echo "builtin echo "texenv: version \'${1}\' is not installed"" >&2
+      exit 1
+    else
+      builtin echo "export TEXENV_VERSION=\"${1}\""
+      builtin echo "builtin echo \"${1}\""
+    fi
+  elif [[ -n "${TEXENV_VERSION}" && "${TEXENV_VERSION}" != "${SHELL}" ]]; then
+    builtin echo "builtin echo \"${TEXENV_VERSION}\""
+  else
+    builtin echo 'builtin echo "texenv: no shell-specific version configured"'
+  fi
+}
+
+cmdShell "${@}"
