@@ -10,6 +10,8 @@ cmdRestore() {
   declare TEX_VERSION
   declare TEX_VERSION_INFO
   declare LOCK_TEX_VERSION
+  declare LOCK_FLAG
+  declare REQUIRE_LIST
   declare SCRIPT_NAME
   declare libs
   declare cmdExec
@@ -30,6 +32,7 @@ cmdRestore() {
       ;;
   esac
   if [[ -f "${TEX_REQUIREMENTS_LOCK_FILE}" ]]; then
+    LOCK_FLAG=1
     FILE_NAME="${TEX_REQUIREMENTS_LOCK_FILE}"
   elif [[ -f "${TEX_REQUIREMENTS_FILE}" ]]; then
     FILE_NAME="${TEX_REQUIREMENTS_FILE}"
@@ -46,7 +49,12 @@ cmdRestore() {
   }
   {
     builtin echo "Restoring TeX packages from ${FILE_NAME}..."
-    "${cmdExec}" tlmgr install $(awk 'NR>1{print $0}' < "${FILE_NAME}" | tr '\n' ' ')
+    REQUIRE_LIST="$(diff -u <("${cmdExec}" tlmgr info --only-installed --data name) <([[ -n "${LOCK_FLAG:-}" ]] && awk 'NR>1{print $0}' < "${FILE_NAME}" || cat "${FILE_NAME}") | awk '/^\+.*/{gsub(/^\+/,"");if(NR>2){printf $0" "}}END{print ""}')"
+    [[ -z "${REQUIRE_LIST%% }" ]] && {
+      builtin echo "All required TeX packages are already installed."
+      exit 0
+    }
+    "${cmdExec}" tlmgr install ${REQUIRE_LIST}
   } || {
     builtin echo "texenv: failed to restore TeX packages" >&2
     exit 1
