@@ -21,7 +21,7 @@ cmdInit() {
       builtin echo "  fi"
       builtin echo "  case \"\${CMD}\" in"
       builtin echo "    shell)"
-      builtin echo "      eval \"\$(texenv-shell \"\${@}\")\""
+      builtin echo "      eval \"\$(texenv \"\${CMD}\" \"\${@}\")\""
       builtin echo "      ;;"
       builtin echo "    *)"
       builtin echo "      command texenv \"\${CMD}\" \"\${@}\""
