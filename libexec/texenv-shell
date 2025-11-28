@@ -6,16 +6,30 @@ set -euo pipefail
 
 cmdShell() {
   declare INSTALLED_VERSIONS
+  case "${1:-}" in
+    -h | --help)
+      builtin echo "Usage: texenv shell [version]"
+      builtin echo "Spawn a new shell with specified TeX Live version"
+      builtin echo "If no version is specified, the currently configured shell-specific version is used"
+      builtin echo "Options:"
+      builtin echo "  -h, --help  Show this help message"
+      exit 0
+      ;;
+  esac
   if [[ -n "${1:-}" ]]; then
+    [[ ! -d "${TEXENV_VERSIONS:-}" ]] && {
+      builtin echo "texenv: no versions installed" >&2
+      exit 1
+    }
     INSTALLED_VERSIONS="$(find "${TEXENV_VERSIONS}" -maxdepth 1 ! -name "${TEXENV_VERSIONS##*/}" -type d | awk -F/ '{print $NF}')"
     if ! grep -qxF "${1}" <<< "${INSTALLED_VERSIONS}" 2> /dev/null; then
-      builtin echo "builtin echo "texenv: version \'${1}\' is not installed"" >&2
+      builtin echo "texenv: version '${1}' is not installed" >&2
       exit 1
     else
       builtin echo "export TEXENV_VERSION=\"${1}\""
       builtin echo "builtin echo \"${1}\""
     fi
-  elif [[ -n "${TEXENV_VERSION}" && "${TEXENV_VERSION}" != "${SHELL}" ]]; then
+  elif [[ -n "${TEXENV_VERSION}" ]]; then
     builtin echo "builtin echo \"${TEXENV_VERSION}\""
   else
     builtin echo 'builtin echo "texenv: no shell-specific version configured"'
