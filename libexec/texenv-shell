@@ -10,10 +10,10 @@ cmdShell() {
   SCRIPT_NAME="${0##*/}"
   case "${1:-}" in
     -h | --help)
-      builtin echo "builtin echo "Usage: \"${SCRIPT_NAME%%-*}\" \"${SCRIPT_NAME##*-}\" \\[version\\]""
-      builtin echo "builtin echo "Spawn a new shell with specified TeX Live version""
-      builtin echo "builtin echo "If no version is specified, the currently configured shell-specific version is used""
-      builtin echo "builtin echo "Options:""
+      builtin echo "builtin echo 'Usage: ${SCRIPT_NAME%%-*} ${SCRIPT_NAME##*-} [version]'"
+      builtin echo 'builtin echo "Spawn a new shell with specified TeX Live version"'
+      builtin echo 'builtin echo "If no version is specified, the currently configured shell-specific version is used"'
+      builtin echo 'builtin echo "Options:"'
       builtin echo 'builtin echo "  -h, --help  Show this help message"'
       exit 0
       ;;
