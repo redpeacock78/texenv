@@ -12,9 +12,9 @@ resolveVersion() {
   DIR="${TEXENV_DIR}"
   if [[ -n "${TEXENV_VERSION}" ]]; then
     builtin echo "TinyTeX-Version: ${TEXENV_VERSION}"
-    builtin echo "TinyTeX-Path: ${SHELL}"
+    builtin echo "TinyTeX-Path: ${TEXENV_SHELL}"
   else
-    [[ -d "${TEXENV_VERSIONS}" ]] && {
+    [[ -d "${TEXENV_VERSIONS:-}" ]] && {
       if [[ -f "${TEXENV_ROOT}/${TEX_GLOBAL_VERSION_FILE}" ]]; then
         VERSION="$(cat "${TEXENV_ROOT}/${TEX_GLOBAL_VERSION_FILE}")"
         VERSION_PATH="${TEXENV_ROOT}/${TEX_GLOBAL_VERSION_FILE}"
@@ -60,7 +60,7 @@ executeRun() {
       builtin echo "texenv: command '${CMD}' not found in version '${VERSION}'" >&2
       exit 1
     }
-    export TEXMFHOME="${TEXMF_HOME}"
+    export TEXMFHOME="${TEXMF_HOME:-}"
     "${CMD_PATH}" "${@}"
   else
     builtin echo "texenv: no version set (use 'texenv global <version>' or 'texenv local <version>')" >&2
