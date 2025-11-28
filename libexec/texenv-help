@@ -10,11 +10,13 @@ cmdHelp() {
   cat << EOF
 USAGE: ${SCRIPT_NAME%%-*} <command> [<args>]
 Commands:
+  commands            List available commands
   init                Initialize ${SCRIPT_NAME%%-*} environment
   install <version>   Install specified TeX Live version
   uninstall <version> Uninstall specified TeX Live version
   version             Show current TeX Live version
   versions            List installed TeX Live versions
+  shell <version>     Spawn a new shell with specified TeX Live version
   global <version>    Set global TeX Live version
   local <version>     Set local TeX Live version
   repo [options]      Manage tlmgr repository
