@@ -12,7 +12,7 @@ cmdInit() {
     -)
       builtin echo "export PATH=\"${TEXENV_BIN}:\${PATH}\""
       builtin echo "export PATH=\"${TEXENV_SHIMS}:\${PATH}\""
-      builtin echo "export TEXENV_VERSION=\"${SHELL}\""
+      builtin echo "export TEXENV_SHELL=\"${SHELL##*/}\""
       builtin echo "texenv() {"
       builtin echo "  local CMD"
       builtin echo "  CMD=\"\${1}\""
