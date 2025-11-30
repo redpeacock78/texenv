@@ -15,6 +15,7 @@
 # @(#)  curl
 # @(#)  perl
 # @(#)  find
+# @(#)  diff
 # @(#)  exec
 # @(#)  sort
 # @(#)  test
@@ -22,7 +23,6 @@
 # @(#)  cat
 # @(#)  tar
 # @(#)  tr
-# @(#)  rm
 ########################################
 
 declare -r TEXENV_DEBUG
