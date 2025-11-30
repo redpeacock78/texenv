@@ -8,10 +8,15 @@ A lightweight version manager for TinyTeX (minimal TeX Live) inspired by rbenv. 
 - Install specific TinyTeX release versions (including a rolling daily build).
 - Maintain multiple versions concurrently under $HOME/.texenv/versions
 - Set a global default or per‑directory local version via .tex-version
-- Automatic shim regeneration after package changes
+- Shims for TeX commands; automatic shim regeneration after tlmgr installs/updates/removals and explicit rehash command
 - Execute tlmgr and other TeX tools inside the currently selected version
 - Freeze installed package names to tex-require.txt or lock with TeX Live version in tex-require.lock
-- Restore packages from a requirements file
+- Restore installs any missing packages from a requirements file (does not remove extras)
+- Repository management for tlmgr:
+  - Auto-selects an appropriate repository based on TeX Live year (latest tlnet for current year, historic tlnet-final for past years)
+  - Show current repository and set per-version mirror overrides
+- Spawn a shell scoped to a specific TinyTeX version
+- Introspection helpers: which/where/whence, root, shims
 - Pure Bash implementation; see Requirements
 - No modification of system TeX installations
 
@@ -29,7 +34,7 @@ A lightweight version manager for TinyTeX (minimal TeX Live) inspired by rbenv. 
   - curl
   - perl with File::Find module (validated at startup)
   - tar
-  - find, grep, awk, tr, cat, mkdir, uname, sort, rm
+  - find, grep, awk, diff, cat, mkdir, uname, sort, rm
 - Network:
   - Internet access to GitHub Releases and API (for version list and archives)
 
@@ -67,9 +72,33 @@ This will create the directory structure:
 
 Ensure ~/.texenv/bin and ~/.texenv/shims appear early in PATH (the init - output adds them).
 
-## Upgrading texenv
+## Command overview
 
-Pull the latest changes:
+Matches `texenv help`:
+
+- commands            List available commands
+- init                Initialize texenv environment
+- install [version]   Install specified TinyTeX version
+- uninstall [version] Uninstall specified TinyTeX version
+- version             Show current TinyTeX version
+- versions            List installed TinyTeX versions
+- shell [version]     Spawn a new shell with specified TinyTeX version
+- global [version]    Set global TinyTeX version
+- local [version]     Set local TinyTeX version
+- repo [options]      Manage tlmgr repository
+- exec [cmd] [args]   Execute command in current TinyTeX version
+- rehash              Rebuild shims for installed TinyTeX versions
+- freeze [options]    Freeze installed TeX packages to requirements file
+- restore             Restore TeX packages from requirements file
+- which [cmd]         Show path to shim for specified command
+- where [cmd]         Show path to command in current TinyTeX version
+- whence [cmd]        Show path to command in all installed TinyTeX versions
+- env                 Display texenv environment information
+- root                Show texenv root directory
+- shims               Show executable file(s) from texenv shims directory
+- help                Show this help message
+
+## Upgrading texenv
 
 ```bash
 cd ~/.texenv
@@ -83,6 +112,8 @@ List available versions (queried from tinytex-releases):
 
 ```bash
 texenv install --list
+# show more (paginated by API): 
+texenv install --list --all
 ```
 
 Install a specific version:
@@ -140,7 +171,11 @@ texenv exec pdflatex main.tex
 texenv exec tlmgr info geometry
 ```
 
-Shims let you call commands directly (e.g. pdflatex) after rehash has generated them. When ambiguous, texenv ensures the correct version by resolving TinyTeX-Version and path metadata.
+Behavior with tlmgr:
+- Before tlmgr install/update/info/search, texenv ensures repository configuration (`texenv repo`).
+- After tlmgr install/update/uninstall/remove, shims are regenerated (`texenv rehash` invoked).
+
+Shims let you call commands directly (e.g. `pdflatex`) once generated. texenv resolves the correct version via TinyTeX-Version and source metadata.
 
 ## Rehashing shims
 
@@ -150,6 +185,32 @@ After installs, removals, or tlmgr operations that change available binaries:
 texenv rehash
 ```
 
+## Repository management (tlmgr)
+
+Show current repository:
+
+```bash
+texenv repo -s
+```
+
+Auto-selection (default):
+- If TeX Live year equals the current year, uses the latest tlnet:
+  - https://ctan.math.illinois.edu/systems/texlive/tlnet
+- Otherwise uses the historic archive for that year:
+  - https://ftp.math.utah.edu/pub/tex/historic/systems/texlive/[YEAR]/tlnet-final
+
+Set a per-version mirror override (persisted):
+
+```bash
+texenv repo -m https://mirror.example.org/tex-archive/systems/texlive/tlnet
+```
+
+Mirror overrides are stored at:
+
+- config/[version]/mirror_repo.txt
+
+If the requested repository matches the current setting, the command is a no-op.
+
 ## Freezing packages
 
 Generate a requirements file of currently installed packages:
@@ -158,16 +219,18 @@ Generate a requirements file of currently installed packages:
 texenv freeze
 ```
 
-Create a lock file including the TeX Live version:
+Create a lock file including the TeX Live version (first line comment):
 
 ```bash
 texenv freeze --lock
+# file header example:
+# TeX Live: 2024
 ```
 
 Files produced:
 
 - tex-require.txt
-- tex-require.lock (first line comment holds TeX Live release)
+- tex-require.lock
 
 ## Restoring packages
 
@@ -177,7 +240,10 @@ Restore from whichever requirements file exists (prefers lock):
 texenv restore
 ```
 
-If the lock file specifies a newer TeX Live version than the active one, restore aborts to protect compatibility.
+Notes:
+- Installs packages that are listed but not currently installed.
+- Does not remove extra packages.
+- If the lock file requires a newer TeX Live than the active one, restore aborts to protect compatibility.
 
 ## Inspecting environment
 
@@ -188,18 +254,20 @@ texenv env
 Shows:
 
 - Active TinyTeX version
-- TEXMF path variables (kpsewhich resolution)
+- TEXMF path variables (via kpsewhich)
 - Active configured repositories
 - texenv-related PATH entries
 - Installed versions summary
 
-## Executing tlmgr safely
+## Shell-scoped version
 
-texenv exec tlmgr install <pkg> will:
+Spawn a new subshell with a specified version (exports TEXENV_VERSION for the shell):
 
-1. Ensure repository configuration (texenv repo) if needed for install/update/search/info operations.
-2. Run tlmgr in the active version context.
-3. Rebuild shims after operations that add or remove binaries.
+```bash
+eval "$(texenv shell 2024.09)"
+```
+
+If no version is provided and no shell-specific version is set, it reports the state.
 
 ## Uninstalling a version
 
@@ -211,18 +279,21 @@ texenv uninstall 2024.09
 
 - Local .tex-version in the current or parent directories overrides global version.
 - Global version stored in ~/.texenv/version used when no local file found.
-- resolveVersion outputs both TinyTeX-Version and TinyTeX-Path for other commands.
+- resolveVersion outputs both TinyTeX-Version and TinyTeX-Path (for shell-scoped versions, the path indicates the shell origin).
 
 ## Directory layout
 
-- versions/<ver> contains the extracted TinyTeX tree (bin/<platform>/... etc.)
-- shims/<cmd> are small Bash launchers pointing back to bin/texenv exec
+- versions/[ver] contains the extracted TinyTeX tree (bin/[platform]/... etc.)
+- shims/[cmd] are small Bash launchers pointing back to bin/texenv exec
 - texmf/ is assigned to TEXMFHOME for user-level additions
-- config/ stores internal caches (e.g. cmd_list_cache.txt)
+- config/ stores internal data:
+  - cmd_list_cache.txt
+  - [version]/mirror_repo.txt
 
 ## Environment variables
 
 - TEXENV_ROOT (default: $HOME/.texenv)
+- TEXENV_DIR (defaults to current working directory, used for local version resolution)
 - TEXENV_PLATFORM (detected: universal-darwin or x86_64-linux)
 - TEXENV_DEBUG=1 enables shell tracing
 - TEXMFHOME overridden to texenv’s managed texmf directory
@@ -237,7 +308,7 @@ texenv uninstall 2024.09
 
 - Open issues for bugs or enhancement ideas.
 - Submit pull requests with concise commits and description.
-- Keep code POSIX/Bash compatible; avoid external dependencies.
+- Keep code Bash-compatible; avoid external dependencies.
 
 ## License
 
