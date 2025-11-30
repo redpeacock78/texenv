@@ -43,14 +43,16 @@ cmdRehash() {
   TMP_SHIMS="$(mktemp -d "${TEXENV_ROOT}/.temp_shims_XXXXXX")"
   awk -F/ '!a[$NF]++{print $NF}' <<< "${CMD_LIST}" |
     while read -r CMD; do
-      declare SHIM_PATH="${TMP_SHIMS}/${CMD}"
+      declare SHIM_PATH
+      SHIM_PATH="${TMP_SHIMS}/${CMD}"
       {
         builtin echo "#!/usr/bin/env bash"
         builtin echo "[[ \"\${TEXENV_DEBUG}\" == 1 ]] && set -x"
         builtin echo "set -euo pipefail"
         builtin echo "shim() {"
-        builtin echo "  declare -r CMD_PATH=\"\$(builtin cd \"\${0%/*}\" && builtin echo \"\${PWD/shims/bin}\")\""
-        builtin echo "  declare -r CMD_NAME=\"\${0##*/}\""
+        builtin echo "  declare -r SCRIPT_NAME=\"\${BASH_SOURCE:-\${0}}\""
+        builtin echo "  declare -r CMD_PATH=\"\$(builtin cd \"\${SCRIPT_NAME%/*}\" && builtin echo \"\${PWD/shims/bin}\")\""
+        builtin echo "  declare -r CMD_NAME=\"\${SCRIPT_NAME##*/}\""
         builtin echo "  exec \"\${CMD_PATH}/texenv\" exec \"\${CMD_NAME}\" \"\${@}\""
         builtin echo "}"
         builtin echo "shim \"\${@}\""
