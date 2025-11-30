@@ -43,7 +43,7 @@ cmdRestore() {
   TEX_VERSION_INFO="$("${libs}" resolveVersion || true)"
   TEX_VERSION="$(awk -F": " '/TinyTeX-Version: /{print $2}' <<< "${TEX_VERSION_INFO}")"
   LOCK_TEX_VERSION="$(awk -F ": " 'NR==1{print $2}' "${FILE_NAME}")"
-  [[ -n "${LOCK_TEX_VERSION:-}" && -n "${TEX_VERSION:-}" ]] && (("${TEX_VERSION}" < "${LOCK_TEX_VERSION}")) && {
+  [[ -n "${LOCK_TEX_VERSION:-}" && -n "${TEX_VERSION:-}" ]] && (("${TEX_VERSION%%.*}" < "${LOCK_TEX_VERSION%%.*}")) && {
     builtin echo "texenv: TeX Live version ${TEX_VERSION} is older than the required version ${LOCK_TEX_VERSION}" >&2
     exit 1
   }
