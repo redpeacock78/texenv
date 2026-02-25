@@ -107,6 +107,10 @@ cmdRepo() {
       }
     else
       REPO="https://ftp.math.utah.edu/pub/tex/historic/systems/texlive/${VERSION_YEAR}/tlnet-final"
+      REPO_STATUS="$(curl -sSIL "${REPO}" -o /dev/null -w "%{http_code}")"
+      [[ "${REPO_STATUS}" != "200" ]] && {
+        REPO="https://ctan.math.illinois.edu/systems/texlive/tlnet"
+      }
       [[ "${REPO}" == "${CURRENT_REPO}" ]] && {
         builtin echo "texenv: Repository is already set to the latest TeX Live repository."
         return 0
