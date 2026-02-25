@@ -15,7 +15,7 @@ cmdInit() {
       builtin echo "export TEXENV_SHELL=\"${SHELL##*/}\""
       builtin echo "texenv() {"
       builtin echo "  local CMD"
-      builtin echo "  CMD=\"\${1}\""
+      builtin echo "  CMD=\"\${1:-}\""
       builtin echo "  [[ \"\${#}\" -gt 0 ]] && shift"
       builtin echo "  case \"\${CMD}\" in"
       builtin echo "    shell)"
