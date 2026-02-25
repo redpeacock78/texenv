@@ -86,24 +86,24 @@ export TEX_CMD_LIST_CACHE
 
 # Read symbolic link to get absolute path
 readLinkFile() {
-  [ "${1:+x}" ] || return 1
+  [[ "${1:+x}" ]] || return 1
   p="${1}"
-  until [ "${p%/}" = "${p}" ]; do p="${p%/}"; done
-  [ -e "${p}" ] && p="${1}"
-  [ -d "${1}" ] && p="${p}/"
+  until [[ "${p%/}" == "${p}" ]]; do p="${p%/}"; done
+  [[ -e "${p}" ]] && p="${1}"
+  [[ -d "${1}" ]] && p="${p}/"
   set 10 "${PWD}" "${OLDPWD:-}"
-  CDPATH="" builtin cd -P "${2}" && while [ "${1}" -gt 0 ]; do
+  CDPATH="" builtin cd -P "${2}" && while [[ "${1}" -gt 0 ]]; do
     set "${1}" "${2}" "${3}" "${p%/*}"
-    [ "${p}" = "${4}" ] || {
+    [[ "${p}" = "${4}" ]] || {
       CDPATH="" builtin cd -P "${4:-/}" || break
-      p=${p##*/}
+      p="${p##*/}"
     }
-    [ ! -L "${p}" ] && p=${PWD%/}${p:+/}${p} && set "$@" "${p:-/}" && break
+    [[ ! -L "${p}" ]] && p="${PWD%/}${p:+/}${p}" && set "${@}" "${p:-/}" && break
     set $((${1} - 1)) "${2}" "${3}" "${p}"
-    p=$(ls -dl "${p}") || break
-    p=${p#*" $4 -> "}
+    p="$(ls -dl "${p}")" || break
+    p="${p#*" $4 -> "}"
   done 2> /dev/null
-  builtin cd -L "${2}" && OLDPWD=${3} && [ ${5+x} ] && builtin printf '%s\n' "${5}"
+  builtin cd -L "${2}" && OLDPWD="${3}" && [[ "${5+x}" ]] && builtin printf '%s\n' "${5}"
 }
 
 TEXENV_LIBEXEC="$(readLinkFile "${BASH_SOURCE:-$0}")"
@@ -116,7 +116,9 @@ main() {
   CMD_NAME="${1:-}"
   CMD_PATH="$(type -P "texenv-${CMD_NAME}" || true)"
   [[ -z "${CMD_PATH}" ]] && {
-    [[ -n "${CMD_NAME}" ]] && builtin echo "texenv: unknown command '${CMD_NAME}'" >&2
+    [[ -n "${CMD_NAME}" ]] && {
+      builtin echo "texenv: unknown command '${CMD_NAME}'" >&2
+    }
     builtin echo "Run '${0##*/} help' for usage." >&2
     exit 1
   }
