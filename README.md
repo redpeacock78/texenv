@@ -40,6 +40,24 @@ A lightweight version manager for TinyTeX (minimal TeX Live) inspired by rbenv. 
 
 ## Installation
 
+### Using anyenv (Recommended)
+
+If you have [anyenv](https://github.com/anyenv/anyenv) installed, you can easily install texenv:
+
+```bash
+rm -rf "${HOME}/.config/anyenv/anyenv-install"
+anyenv install --init https://github.com/redpeacock78/anyenv-install.git texenv-add
+anyenv install texenv
+```
+
+Add texenv initialization lines to your shell profile (~/.bashrc, ~/.zshrc, etc.):
+
+```bash
+eval "$(anyenv init -)"
+```
+
+### Manual Installation
+
 Clone the repository somewhere on your PATH (recommended: $HOME/.texenv):
 
 ```bash
@@ -58,7 +76,9 @@ Open a new shell (or source your profile) then run:
 texenv init
 ```
 
-This will create the directory structure:
+### Directory Structure
+
+After installation, the following directory structure will be created:
 
 ```text
 ~/.texenv/
