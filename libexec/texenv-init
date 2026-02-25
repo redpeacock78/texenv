@@ -24,6 +24,7 @@ cmdInit() {
       builtin echo "      command texenv \"\${CMD}\" \"\${@}\";;"
       builtin echo "  esac"
       builtin echo "}"
+      builtin echo "texenv init > /dev/null 2>&1"
       exit 0
       ;;
     -h | --help)
