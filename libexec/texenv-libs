@@ -61,6 +61,7 @@ executeRun() {
       exit 1
     }
     export TEXMFHOME="${TEXMF_HOME:-}"
+    export PATH="${TEXENV_VERSIONS}/${VERSION}/bin/${TEXENV_PLATFORM}:${PATH}"
     "${CMD_PATH}" "${@}"
   else
     builtin echo "texenv: no version set (use 'texenv global <version>' or 'texenv local <version>')" >&2
