@@ -8,7 +8,9 @@ set -euo pipefail
 cmdGlobal() {
   declare VERSION
   declare SCRIPT_NAME
+  declare libs
   SCRIPT_NAME="${0##*/}"
+  libs="$(type -P "texenv-libs" || true)"
   case "${1:-}" in
     -h | --help)
       builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SCRIPT_NAME##*-} [options] <version>"
@@ -21,13 +23,23 @@ cmdGlobal() {
       VERSION="${1:-}"
       ;;
   esac
-  [[ -z "${VERSION}" ]] && {
-    builtin echo "USAGE: texenv global <version>" >&2
-    exit 1
-  }
   [[ -d "${TEXENV_VERSIONS}/${VERSION}" ]] || {
     builtin echo "texenv: version ${VERSION} is not installed" >&2
     exit 1
+  }
+  [[ -z "${VERSION}" ]] && {
+    if [[ -d "${TEXENV_VERSIONS}" ]]; then
+      TEX_VERSION_INFO="$("${libs}" resolveVersion || true)"
+      VERSION="$(awk -F": " '/TinyTeX-Version: /{print $2}' <<< "${TEX_VERSION_INFO}")"
+      [[ -z "${VERSION}" ]] && {
+        builtin echo "texenv: no version set (use 'texenv global <version>')" >&2
+        exit 1
+      }
+      builtin echo "${VERSION}"
+    else
+      builtin echo "texenv: no version set (use 'texenv global <version>')" >&2
+      exit 1
+    fi
   }
   {
     builtin echo "${VERSION}" > "${TEXENV_ROOT}/${TEX_GLOBAL_VERSION_FILE}"
