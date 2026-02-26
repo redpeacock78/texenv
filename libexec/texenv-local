@@ -44,7 +44,7 @@ cmdLocal() {
     fi
   }
   {
-    builtin echo "${VERSION}" > "${PID}/${TEX_LOCAL_VERSION_FILE}"
+    builtin echo "${VERSION}" > "${DIR}/${TEX_LOCAL_VERSION_FILE}"
   } || {
     builtin echo "texenv: failed to set local version" >&2
     exit 1
