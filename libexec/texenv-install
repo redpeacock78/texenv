@@ -111,7 +111,7 @@ cmdInstall() {
   curl -L -f --retry 10 --retry-delay 30 -# "${TEX_URL}" -o "${TEX_TMP}"
   tar xf "${TEX_TMP}" -C "${TEX_DIR}" --strip-components=1
   rm -rf "${TEX_TMP}"
-  "${cmdRehash}"
+  "${cmdRehash}" > /dev/null
   builtin echo "TeX Live version ${VERSION} installed successfully."
   INSTALL_STATUS=1
   trap - EXIT INT TERM
