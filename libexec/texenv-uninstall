@@ -42,7 +42,7 @@ cmdUninstall() {
   {
     builtin echo "Uninstalling version ${VERSION}..."
     rm -rf "${TEXENV_VERSIONS}/${VERSION:?}"
-    "${cmdRehash}"
+    "${cmdRehash}" > /dev/null
     builtin echo "TeX Live version ${VERSION} uninstalled successfully."
   } || {
     builtin echo "texenv: failed to uninstall version ${VERSION}" >&2
