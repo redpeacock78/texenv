@@ -9,6 +9,7 @@ cmdRehash() {
   declare CMD_LIST
   declare SCRIPT_NAME
   declare TMP_SHIMS
+  declare SHIM_SCRIPT_PATH
   declare BACKUP_SHIMS
   SCRIPT_NAME="${0##*/}"
   case "${1:-}" in
@@ -41,23 +42,12 @@ cmdRehash() {
     mv "${TEXENV_SHIMS}" "${BACKUP_SHIMS}"
   }
   TMP_SHIMS="$(mktemp -d "${TEXENV_ROOT}/.temp_shims_XXXXXX")"
+  SHIM_SCRIPT_PATH="${TEXENV_LIBEXEC}/.texenv-shim"
   awk -F/ '!a[$NF]++{print $NF}' <<< "${CMD_LIST}" |
     while read -r CMD; do
       declare SHIM_PATH
       SHIM_PATH="${TMP_SHIMS}/${CMD}"
-      {
-        builtin echo "#!/usr/bin/env bash"
-        builtin echo "[[ \"\${TEXENV_DEBUG}\" == 1 ]] && set -x"
-        builtin echo "set -euo pipefail"
-        builtin echo "shim() {"
-        builtin echo "  declare -r SCRIPT_NAME=\"\${BASH_SOURCE:-\${0}}\""
-        builtin echo "  declare -r CMD_PATH=\"\$(builtin cd \"\${SCRIPT_NAME%/*}\" && builtin echo \"\${PWD/shims/bin}\")\""
-        builtin echo "  declare -r CMD_NAME=\"\${SCRIPT_NAME##*/}\""
-        builtin echo "  exec \"\${CMD_PATH}/texenv\" exec \"\${CMD_NAME}\" \"\${@}\""
-        builtin echo "}"
-        builtin echo "shim \"\${@}\""
-      } > "${SHIM_PATH}"
-      chmod +x "${SHIM_PATH}"
+      ln -s "${SHIM_SCRIPT_PATH}" "${SHIM_PATH}"
     done
   builtin echo "${CMD_LIST}" > "${TEX_CMD_LIST_CACHE}"
   mv "${TMP_SHIMS}" "${TEXENV_SHIMS}"
