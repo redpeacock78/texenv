@@ -106,9 +106,11 @@ readLinkFile() {
   builtin cd -L "${2}" && OLDPWD="${3}" && [[ "${5+x}" ]] && builtin printf '%s\n' "${5}"
 }
 
-TEXENV_LIBEXEC="$(readLinkFile "${BASH_SOURCE:-$0}")"
+TEXENV_ABS_PATH="$(readLinkFile "${BASH_SOURCE:-$0}")"
+TEXENV_LIBEXEC="${TEXENV_ABS_PATH%/*}"
 declare -r TEXENV_LIBEXEC
-export PATH="${TEXENV_LIBEXEC%/*}:${PATH}"
+export TEXENV_LIBEXEC
+export PATH="${TEXENV_LIBEXEC}:${PATH}"
 
 main() {
   declare CMD_NAME
