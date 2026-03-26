@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+[[ "${TEXENV_DEBUG}" == 1 ]] && set -x
+set -euo pipefail
+shim() {
+  declare -r SCRIPT_NAME="${BASH_SOURCE:-${0}}"
+  declare -r CMD_PATH="$(builtin cd "${SCRIPT_NAME%/*}" && builtin echo "${PWD/shims/bin}")"
+  declare -r CMD_NAME="${SCRIPT_NAME##*/}"
+  exec "${CMD_PATH}/texenv" exec "${CMD_NAME}" "${@}"
+}
+shim "${@}"
