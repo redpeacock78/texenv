@@ -33,7 +33,7 @@ cmdRehash() {
     builtin echo "texenv: no commands found in installed versions" >&2
     exit 1
   }
-  SHIMS_LIST="$(find "${TEXENV_SHIMS}" -type l)"
+  SHIMS_LIST="$(find "${TEXENV_SHIMS}" -maxdepth 1 -type l)"
   ADD_DIFF_LIST="$(grep -Fxv -f <(awk -F/ '!a[$NF]++{print $NF}' <<< "${SHIMS_LIST}") <(awk -F/ '!a[$NF]++{print $NF}' <<< "${CMD_LIST}") || true)"
   RM_DIFF_LIST="$(grep -Fxv -f <(awk -F/ '!a[$NF]++{print $NF}' <<< "${CMD_LIST}") <(awk -F/ '!a[$NF]++{print $NF}' <<< "${SHIMS_LIST}") || true)"
   [[ -z "${ADD_DIFF_LIST}" && -z "${RM_DIFF_LIST}" ]] && {
