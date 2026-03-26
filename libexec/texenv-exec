@@ -43,7 +43,7 @@ cmdExec() {
     if [[ "${1:-}" == "tlmgr" ]]; then
       case "${2:-}" in
         install | update | uninstall | remove)
-          "${cmdRehash}"
+          "${cmdRehash}" > /dev/null
           ;;
       esac
     fi
