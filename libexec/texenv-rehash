@@ -33,14 +33,14 @@ cmdRehash() {
     builtin echo "texenv: no versions installed" >&2
     exit 1
   }
-  CMD_LIST="$(find "${TEXENV_VERSIONS}" -path "*/bin/${TEXENV_PLATFORM}/*" ! -type d -exec bash -c 'for f in "${@}"; do [[ -x "${f}" ]] && builtin echo "${f}"; done' _ {} +)"
+  CMD_LIST="$(find "${TEXENV_VERSIONS}" -path "*/bin/${TEXENV_PLATFORM}/*" ! -type d -exec bash -c 'for f in "${@}"; do [[ -x "${f}" ]] && builtin echo "${f}"; done' _ {} + | awk -F/ '!a[$NF]++{print $NF}')"
   [[ -z "${CMD_LIST}" ]] && {
     builtin echo "texenv: no commands found in installed versions" >&2
     exit 1
   }
-  SHIMS_LIST="$(find "${TEXENV_SHIMS}" -maxdepth 1 -type l)"
-  ADD_DIFF_LIST="$(grep -Fxv -f <(awk -F/ '!a[$NF]++{print $NF}' <<< "${SHIMS_LIST}") <(awk -F/ '!a[$NF]++{print $NF}' <<< "${CMD_LIST}") || true)"
-  RM_DIFF_LIST="$(grep -Fxv -f <(awk -F/ '!a[$NF]++{print $NF}' <<< "${CMD_LIST}") <(awk -F/ '!a[$NF]++{print $NF}' <<< "${SHIMS_LIST}") || true)"
+  SHIMS_LIST="$(find "${TEXENV_SHIMS}" -maxdepth 1 -type l | awk -F/ '!a[$NF]++{print $NF}')"
+  ADD_DIFF_LIST="$(grep -Fxv -f <(builtin echo "${SHIMS_LIST}") <(builtin echo "${CMD_LIST}") 2> /dev/null || true)"
+  RM_DIFF_LIST="$(grep -Fxv -f <(builtin echo "${CMD_LIST}") <(builtin echo "${SHIMS_LIST}") 2> /dev/null || true)"
   [[ "${FORCE_REHASH:-0}" == 0 && -z "${ADD_DIFF_LIST}" && -z "${RM_DIFF_LIST}" ]] && {
     builtin echo "texenv: already up to date"
     return 0
@@ -58,12 +58,11 @@ cmdRehash() {
   }
   TMP_SHIMS="$(mktemp -d "${TEXENV_ROOT}/.temp_shims_XXXXXX")"
   SHIM_SCRIPT_PATH="${TEXENV_LIBEXEC}/.texenv-shim"
-  awk -F/ '!a[$NF]++{print $NF}' <<< "${CMD_LIST}" |
-    while read -r CMD; do
-      declare SHIM_PATH
-      SHIM_PATH="${TMP_SHIMS}/${CMD}"
-      ln -s "${SHIM_SCRIPT_PATH}" "${SHIM_PATH}"
-    done
+  while read -r CMD; do
+    declare SHIM_PATH
+    SHIM_PATH="${TMP_SHIMS}/${CMD}"
+    ln -s "${SHIM_SCRIPT_PATH}" "${SHIM_PATH}"
+  done < <(builtin echo "${CMD_LIST}")
   builtin echo "${CMD_LIST}" > "${TEX_CMD_LIST_CACHE}"
   mv "${TMP_SHIMS}" "${TEXENV_SHIMS}"
   [[ -n "${BACKUP_SHIMS:-}" && -d "${BACKUP_SHIMS}" ]] && rm -rf "${BACKUP_SHIMS:?}"
