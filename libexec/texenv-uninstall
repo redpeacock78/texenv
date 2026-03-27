@@ -8,6 +8,7 @@ set -euo pipefail
 cmdUninstall() {
   declare VERSION
   declare SCRIPT_NAME
+  declare CONFIG_DIR
   declare cmdRehash
   SCRIPT_NAME="${0##*/}"
   cmdRehash="$(type -P 'texenv-rehash' || true)"
@@ -42,6 +43,8 @@ cmdUninstall() {
   {
     builtin echo "Uninstalling version ${VERSION}..."
     rm -rf "${TEXENV_VERSIONS}/${VERSION:?}"
+    CONFIG_DIR="${TEXENV_CONFIG}/${VERSION:?}"
+    [[ -d "${CONFIG_DIR}" ]] && rm -rf "${CONFIG_DIR:?}"
     "${cmdRehash}" > /dev/null
     builtin echo "TeX Live version ${VERSION} uninstalled successfully."
   } || {
