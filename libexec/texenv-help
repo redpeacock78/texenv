@@ -10,27 +10,27 @@ cmdHelp() {
   cat << EOF
 USAGE: ${SCRIPT_NAME%%-*} <command> [<args>]
 Commands:
-  commands            List available commands
-  init                Initialize ${SCRIPT_NAME%%-*} environment
-  install <version>   Install specified TeX Live version
-  uninstall <version> Uninstall specified TeX Live version
-  version             Show current TeX Live version
-  versions            List installed TeX Live versions
-  shell <version>     Spawn a new shell with specified TeX Live version
-  global <version>    Set global TeX Live version
-  local <version>     Set local TeX Live version
-  repo [options]      Manage tlmgr repository
-  exec <cmd> [args]   Execute command in current TeX Live version
-  rehash              Rebuild shims for installed TeX Live versions
-  freeze [options]    Freeze installed TeX packages to requirements file
-  restore             Restore TeX packages from requirements file
-  which <cmd>         Show path to shim for specified command
-  where <cmd>         Show path to command in current TeX Live version
-  whence <cmd>        Show path to command in all installed TeX Live versions
-  env                 Display ${SCRIPT_NAME%%-*} environment information
-  root                Show ${SCRIPT_NAME%%-*} root directory
-  shims               Show executable file(s) from ${SCRIPT_NAME%%-*} shims directory
-  help                Show this help message
+  commands                      List available commands
+  init                          Initialize ${SCRIPT_NAME%%-*} environment
+  install [options] <version>   Install specified TeX Live version
+  uninstall <version>           Uninstall specified TeX Live version
+  version                       Show current TeX Live version
+  versions                      List installed TeX Live versions
+  shell <version>               Spawn a new shell with specified TeX Live version
+  global <version>              Set global TeX Live version
+  local <version>               Set local TeX Live version
+  repo [options]                Manage tlmgr repository
+  exec <cmd> [args]             Execute command in current TeX Live version
+  rehash [options]              Rebuild shims for installed TeX Live versions
+  freeze [options]              Freeze installed TeX packages to requirements file
+  restore                       Restore TeX packages from requirements file
+  which <cmd>                   Show path to shim for specified command
+  where <cmd>                   Show path to command in current TeX Live version
+  whence <cmd>                  Show path to command in all installed TeX Live versions
+  env                           Display ${SCRIPT_NAME%%-*} environment information
+  root                          Show ${SCRIPT_NAME%%-*} root directory
+  shims                         Show executable file(s) from ${SCRIPT_NAME%%-*} shims directory
+  help                          Show this help message
 EOF
   exit 0
 }
