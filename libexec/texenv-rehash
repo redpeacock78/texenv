@@ -15,7 +15,6 @@ cmdRehash() {
   declare TMP_SHIMS
   declare SHIM_SCRIPT_PATH
   declare BACKUP_SHIMS
-  FORCE=0
   SCRIPT_NAME="${0##*/}"
   case "${1:-}" in
     -f | --force)
@@ -42,7 +41,7 @@ cmdRehash() {
   SHIMS_LIST="$(find "${TEXENV_SHIMS}" -maxdepth 1 -type l)"
   ADD_DIFF_LIST="$(grep -Fxv -f <(awk -F/ '!a[$NF]++{print $NF}' <<< "${SHIMS_LIST}") <(awk -F/ '!a[$NF]++{print $NF}' <<< "${CMD_LIST}") || true)"
   RM_DIFF_LIST="$(grep -Fxv -f <(awk -F/ '!a[$NF]++{print $NF}' <<< "${CMD_LIST}") <(awk -F/ '!a[$NF]++{print $NF}' <<< "${SHIMS_LIST}") || true)"
-  [[ "${FORCE}" == 0 && -z "${ADD_DIFF_LIST}" && -z "${RM_DIFF_LIST}" ]] && {
+  [[ "${FORCE:-0}" == 0 && -z "${ADD_DIFF_LIST}" && -z "${RM_DIFF_LIST}" ]] && {
     builtin echo "texenv: already up to date"
     return 0
   }
