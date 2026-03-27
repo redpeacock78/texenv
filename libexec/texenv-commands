@@ -5,9 +5,11 @@ declare -r TEXENV_DEBUG
 set -euo pipefail
 
 cmdCommands() {
+  declare SCRIPT_NAME
+  SCRIPT_NAME="${0##*/}"
   case "${1:-}" in
     -h | --help)
-      builtin echo "Usage: ${0##*/} commands"
+      builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SCRIPT_NAME##*-} [options]"
       builtin echo "List available commands"
       builtin echo "Options:"
       builtin echo "  -h, --help  Show this help message"
