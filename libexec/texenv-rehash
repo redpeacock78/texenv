@@ -6,11 +6,11 @@ set -euo pipefail
 
 # Rebuild shims for installed TeX Live versions
 cmdRehash() {
-  declare FORCE
   declare CMD_LIST
   declare SHIMS_LIST
   declare ADD_DIFF_LIST
   declare RM_DIFF_LIST
+  declare FORCE_REHASH
   declare SCRIPT_NAME
   declare TMP_SHIMS
   declare SHIM_SCRIPT_PATH
@@ -18,7 +18,7 @@ cmdRehash() {
   SCRIPT_NAME="${0##*/}"
   case "${1:-}" in
     -f | --force)
-      FORCE=1
+      FORCE_REHASH=1
       ;;
     -h | --help)
       builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SCRIPT_NAME##*-}"
@@ -41,7 +41,7 @@ cmdRehash() {
   SHIMS_LIST="$(find "${TEXENV_SHIMS}" -maxdepth 1 -type l)"
   ADD_DIFF_LIST="$(grep -Fxv -f <(awk -F/ '!a[$NF]++{print $NF}' <<< "${SHIMS_LIST}") <(awk -F/ '!a[$NF]++{print $NF}' <<< "${CMD_LIST}") || true)"
   RM_DIFF_LIST="$(grep -Fxv -f <(awk -F/ '!a[$NF]++{print $NF}' <<< "${CMD_LIST}") <(awk -F/ '!a[$NF]++{print $NF}' <<< "${SHIMS_LIST}") || true)"
-  [[ "${FORCE:-0}" == 0 && -z "${ADD_DIFF_LIST}" && -z "${RM_DIFF_LIST}" ]] && {
+  [[ "${FORCE_REHASH:-0}" == 0 && -z "${ADD_DIFF_LIST}" && -z "${RM_DIFF_LIST}" ]] && {
     builtin echo "texenv: already up to date"
     return 0
   }
