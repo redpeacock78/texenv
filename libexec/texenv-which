@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-declare TEXENV_DEBUG
+declare -r TEXENV_DEBUG
 [[ "${TEXENV_DEBUG}" == 1 ]] && set -x
 set -euo pipefail
 
