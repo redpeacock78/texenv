@@ -13,11 +13,11 @@ cmdEnv() {
   declare cmdVersions
   declare SCRIPT_NAME
   SCRIPT_NAME="${0##*/}"
-  libs="$(type -P "texenv-libs" || true)"
+  libs="$(builtin type -P "texenv-libs" || true)"
+  cmdRepo="$(builtin type -P "texenv-repo" || true)"
+  cmdVersion="$(builtin type -P "texenv-version" || true)"
+  cmdVersions="$(builtin type -P "texenv-versions" || true)"
   kpsewhich="${libs} executeRun kpsewhich"
-  cmdRepo="$(type -P "texenv-repo" || true)"
-  cmdVersion="$(type -P "texenv-version" || true)"
-  cmdVersions="$(type -P "texenv-versions" || true)"
   [[ -z "${libs}" || -z "${cmdRepo}" || -z "${cmdVersion}" || -z "${cmdVersions}" ]] && {
     builtin echo "texenv: required component(s) missing" >&2
     exit 1

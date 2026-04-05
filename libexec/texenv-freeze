@@ -12,8 +12,8 @@ cmdFreeze() {
   declare cmdExec
   declare cmdVersion
   SCRIPT_NAME="${0##*/}"
-  cmdExec="$(type -P "texenv-exec" || true)"
-  cmdVersion="$(type -P "texenv-version" || true)"
+  cmdExec="$(builtin type -P "texenv-exec" || true)"
+  cmdVersion="$(builtin type -P "texenv-version" || true)"
   [[ -z "${cmdExec}" || -z "${cmdVersion}" ]] && {
     builtin echo "texenv: required component(s) missing" >&2
     exit 1

@@ -17,7 +17,7 @@ cmdInstall() {
   declare SCRIPT_NAME
   declare cmdRehash
   SCRIPT_NAME="${0##*/}"
-  cmdRehash="$(type -P 'texenv-rehash' || true)"
+  cmdRehash="$(builtin type -P 'texenv-rehash' || true)"
   [[ -z "${cmdRehash}" ]] && {
     builtin echo "texenv: required component(s) missing" >&2
     exit 1

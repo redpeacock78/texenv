@@ -29,10 +29,17 @@ declare -r TEXENV_DEBUG
 [[ "${TEXENV_DEBUG}" == 1 ]] && set -x
 set -euo pipefail
 
-perl -mFile::Find /dev/null || {
-  builtin echo "perl is required but not found (https://github.com/rstudio/tinytex/issues/419)" >&2
+declare PERL_PATH
+PERL_PATH="$(builtin type -P perl || true)"
+if [[ -z "${PERL_PATH}" ]]; then
+  builtin echo "texenv: perl is required" >&2
   exit 1
-}
+else
+  "${PERL_PATH}" -mFile::Find /dev/null || {
+    builtin echo "texenv: perl is required but not found (https://github.com/rstudio/tinytex/issues/419)" >&2
+    exit 1
+  }
+fi
 
 OS_NAME="$(uname)"
 ARCH="$(uname -m)"
@@ -55,13 +62,13 @@ else
 fi
 
 declare -r TEXENV_VERSION="${TEXENV_VERSION:-}"
-declare -r TEXENV_DIR="${TEXENV_DIR:-${PWD}}"
-declare -r TEXENV_ROOT="${TEXENV_ROOT:-${HOME}/.texenv}"
+declare -r TEXENV_DIR="${TEXENV_DIR:-"${PWD}"}"
+declare -r TEXENV_ROOT="${TEXENV_ROOT:-"${HOME}/.texenv"}"
 declare -r TEXENV_VERSIONS="${TEXENV_ROOT}/versions"
 declare -r TEXENV_CONFIG="${TEXENV_ROOT}/config"
 declare -r TEXENV_BIN="${TEXENV_ROOT}/bin"
 declare -r TEXENV_SHIMS="${TEXENV_ROOT}/shims"
-declare -r TEXMF_HOME="${TEXENV_ROOT}/texmf"
+declare -r TEXMF_HOME="${TEXMF_HOME:-"${TEXENV_ROOT}/texmf"}"
 declare -r TEX_GLOBAL_VERSION_FILE="version"
 declare -r TEX_LOCAL_VERSION_FILE=".tex-version"
 declare -r TEX_REQUIREMENTS_FILE="tex-require.txt"
@@ -106,7 +113,8 @@ readLinkFile() {
   builtin cd -L "${2}" && OLDPWD="${3}" && [[ "${5+x}" ]] && builtin printf '%s\n' "${5}"
 }
 
-TEXENV_ABS_PATH="$(readLinkFile "${BASH_SOURCE:-$0}")"
+declare TEXENV_ABS_PATH
+TEXENV_ABS_PATH="$(readLinkFile "${BASH_SOURCE:-"${0}"}")"
 TEXENV_LIBEXEC="${TEXENV_ABS_PATH%/*}"
 declare -r TEXENV_LIBEXEC
 export TEXENV_LIBEXEC
@@ -116,7 +124,7 @@ main() {
   declare CMD_NAME
   declare CMD_PATH
   CMD_NAME="${1:-}"
-  CMD_PATH="$(type -P "texenv-${CMD_NAME}" || true)"
+  CMD_PATH="$(builtin type -P "texenv-${CMD_NAME}" || true)"
   [[ -z "${CMD_PATH}" ]] && {
     [[ -n "${CMD_NAME}" ]] && {
       builtin echo "texenv: unknown command '${CMD_NAME}'" >&2

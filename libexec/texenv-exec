@@ -12,11 +12,11 @@ cmdExec() {
   declare executeRun
   declare SCRIPT_NAME
   SCRIPT_NAME="${0##*/}"
-  libs="$(type -P "texenv-libs" || true)"
-  cmdRepo="$(type -P "texenv-repo" || true)"
-  cmdRehash="$(type -P "texenv-rehash" || true)"
+  libs="$(builtin type -P "texenv-libs" || true)"
+  cmdRepo="$(builtin type -P "texenv-repo" || true)"
+  cmdRehash="$(builtin type -P "texenv-rehash" || true)"
   executeRun="${libs} executeRun"
-  [[ -z "${executeRun}" || -z "${cmdRepo}" || -z "${cmdRehash}" ]] && {
+  [[ -z "${libs}" || -z "${cmdRepo}" || -z "${cmdRehash}" ]] && {
     builtin echo "texenv: required component(s) missing" >&2
     exit 1
   }

@@ -13,7 +13,7 @@ cmdVersions() {
   declare SCRIPT_NAME
   declare libs
   SCRIPT_NAME="${0##*/}"
-  libs="$(type -P "texenv-libs" || true)"
+  libs="$(builtin type -P "texenv-libs" || true)"
   [[ -z "${libs}" ]] && {
     builtin echo "texenv: required component(s) missing" >&2
     exit 1

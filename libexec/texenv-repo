@@ -23,7 +23,7 @@ cmdRepo() {
   declare SCRIPT_NAME
   declare regex
   SCRIPT_NAME="${0##*/}"
-  libs="$(type -P "texenv-libs" || true)"
+  libs="$(builtin type -P "texenv-libs" || true)"
   executeRun="${libs} executeRun"
   resolveVersion="${libs} resolveVersion"
   [[ -z "${libs}" ]] && {

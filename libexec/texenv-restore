@@ -16,8 +16,8 @@ cmdRestore() {
   declare libs
   declare cmdExec
   SCRIPT_NAME="${0##*/}"
-  libs="$(type -P "texenv-libs" || true)"
-  cmdExec="$(type -P "texenv-exec" || true)"
+  libs="$(builtin type -P "texenv-libs" || true)"
+  cmdExec="$(builtin type -P "texenv-exec" || true)"
   [[ -z "${libs}" || -z "${cmdExec}" ]] && {
     builtin echo "texenv: required component(s) missing" >&2
     exit 1
