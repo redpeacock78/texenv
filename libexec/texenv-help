@@ -233,6 +233,17 @@ helpWhere() {
   [[ "${1:-}" != "desc" ]] && builtin echo "  -h, --help  Show this help message"
 }
 
+helpWhich() {
+  declare SCRIPT_NAME
+  declare SUBCMD_NAME
+  SCRIPT_NAME="${0##*/}"
+  SUBCMD_NAME="${FUNCNAME[0]##help}"
+  [[ "${1:-}" != "desc" ]] && builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SUBCMD_NAME,,} <cmd>"
+  builtin echo "Show path to shim for specified command"
+  [[ "${1:-}" != "desc" ]] && builtin echo "Options:"
+  [[ "${1:-}" != "desc" ]] && builtin echo "  -h, --help  Show this help message"
+}
+
 cmdHelp() {
   declare SCRIPT_NAME
   SCRIPT_NAME="${0##*/}"
