@@ -15,11 +15,13 @@ cmdInstall() {
   declare FORCE_INSTALL
   declare INSTALL_STATUS
   declare SCRIPT_NAME
+  declare cmdHelp
   declare cmdRehash
   SCRIPT_NAME="${0##*/}"
+  cmdHelp="$(builtin type -P "texenv-help" || true)"
   cmdRehash="$(builtin type -P 'texenv-rehash' || true)"
-  [[ -z "${cmdRehash}" ]] && {
-    builtin echo "texenv: required component(s) missing" >&2
+  [[ -z "${cmdHelp}" || -z "${cmdRehash}" ]] && {
+    builtin echo "${SCRIPT_NAME%%-*}: required component(s) missing" >&2
     exit 1
   }
   versionList() {
@@ -39,12 +41,7 @@ cmdInstall() {
           exit 0
           ;;
         -h | --help)
-          builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SCRIPT_NAME##*-} [-l|--list] [options]"
-          builtin echo "List available TeX Live versions"
-          builtin echo "Options:"
-          builtin echo "  -a, --all   List all available versions"
-          builtin echo "  -h, --help  Show this help message"
-          exit 0
+          builtin exec "${cmdHelp}" "${SCRIPT_NAME##*-}" "${@}"
           ;;
       esac
       versionList
@@ -56,34 +53,28 @@ cmdInstall() {
       VERSION="${1:-}"
       ;;
     -h | --help)
-      builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SCRIPT_NAME##*-} [options] <version>"
-      builtin echo "Install specified TeX Live version"
-      builtin echo "Options:"
-      builtin echo "  -l, --list  List available versions"
-      builtin echo "  -f, --force Force reinstall if version is already installed"
-      builtin echo "  -h, --help  Show this help message"
-      exit 0
+      builtin exec "${cmdHelp}" "${SCRIPT_NAME##*-}"
       ;;
     *)
       VERSION="${1:-}"
       ;;
   esac
   [[ -d "${TEXENV_ROOT}" && -d "${TEXENV_VERSIONS}" && -d "${TEXENV_CONFIG}" && -d "${TEXENV_SHIMS}" ]] || {
-    builtin echo "texenv: run 'texenv init' first" >&2
+    builtin echo "${SCRIPT_NAME%%-*}: run '${SCRIPT_NAME%%-*} init' first" >&2
     exit 1
   }
   [[ -z "${VERSION}" ]] && {
-    builtin echo "texenv: texenv install [options] <version>" >&2
+    builtin echo "${SCRIPT_NAME%%-*}: ${SCRIPT_NAME##*-} [options] <version>" >&2
     exit 1
   }
   TEX_DIR="${TEXENV_VERSIONS}/${VERSION/daily/daily-$(date +%Y.%m.%d)}"
   [[ -d "${TEX_DIR}" && "${FORCE_INSTALL:-0}" != 1 ]] && {
-    builtin echo "texenv: version ${VERSION} is already installed" >&2
+    builtin echo "${SCRIPT_NAME%%-*}: version ${VERSION} is already installed" >&2
     exit 1
   }
   VERSION_LIST="$(versionList)"
   grep -qxF "${VERSION}" <<< "${VERSION_LIST}" || {
-    builtin echo "texenv: version '${VERSION}' is not available" >&2
+    builtin echo "${SCRIPT_NAME%%-*}: version '${VERSION}' is not available" >&2
     exit 1
   }
   if [[ "${VERSION}" == "daily" ]]; then
@@ -98,7 +89,7 @@ cmdInstall() {
     [[ -n "${TEX_TMP:-}" && -f "${TEX_TMP}" ]] && rm -rf "${TEX_TMP:?}"
     [[ "${INSTALL_STATUS:-0}" != 1 ]] && {
       [[ -n "${TEX_DIR:-}" && -d "${TEX_DIR}" ]] && rm -rf "${TEX_DIR:?}"
-      builtin echo "texenv: failed to install version ${VERSION}" >&2
+      builtin echo "${SCRIPT_NAME%%-*}: failed to install version ${VERSION}" >&2
     }
   }
   trap cleanup EXIT INT TERM

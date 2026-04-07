@@ -12,19 +12,17 @@ cmdVersions() {
   declare VERSIONS
   declare SCRIPT_NAME
   declare libs
+  declare cmdHelp
   SCRIPT_NAME="${0##*/}"
   libs="$(builtin type -P "texenv-libs" || true)"
-  [[ -z "${libs}" ]] && {
-    builtin echo "texenv: required component(s) missing" >&2
+  cmdHelp="$(builtin type -P "texenv-help" || true)"
+  [[ -z "${libs}" || -z "${cmdHelp}" ]] && {
+    builtin echo "${SCRIPT_NAME%%-*}: required component(s) missing" >&2
     exit 1
   }
   case "${1:-}" in
     -h | --help)
-      builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SCRIPT_NAME##*-} [options]"
-      builtin echo "List installed TeX Live versions"
-      builtin echo "Options:"
-      builtin echo "  -h, --help  Show this help message"
-      exit 0
+      builtin exec "${cmdHelp}" "${SCRIPT_NAME##*-}"
       ;;
   esac
   if [[ -d "${TEXENV_VERSIONS}" ]]; then
@@ -33,7 +31,7 @@ cmdVersions() {
     VERSION_PATH="$(awk -F": " '/TinyTeX-Path: /{print $2}' <<< "${TEX_VERSION_INFO}")"
     VERSIONS="$(find "${TEXENV_VERSIONS}" -maxdepth 1 ! -name "${TEXENV_VERSIONS##*/}" -type d)"
     [[ -z "${VERSIONS}" ]] && {
-      builtin echo "texenv: no versions installed" >&2
+      builtin echo "${SCRIPT_NAME%%-*}: no versions installed" >&2
       exit 1
     }
     sort <<< "${VERSIONS}" |
@@ -45,7 +43,7 @@ cmdVersions() {
           }
         }'
   else
-    builtin echo "texenv: no versions installed" >&2
+    builtin echo "${SCRIPT_NAME%%-*}: no versions installed" >&2
     exit 1
   fi
 }

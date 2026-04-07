@@ -41,30 +41,32 @@ executeRun() {
   declare TEX_VERSION_INFO
   declare CMD
   declare CMD_PATH
+  declare SCRIPT_NAME
+  SCRIPT_NAME="${0##*/}"
   if [[ -d "${TEXENV_VERSIONS}" ]]; then
     TEX_VERSION_INFO="$(resolveVersion)"
     VERSION="$(awk -F": " '/TinyTeX-Version: /{print $2}' <<< "${TEX_VERSION_INFO}")"
     VERSION_PATH="$(awk -F": " '/TinyTeX-Path: /{print $2}' <<< "${TEX_VERSION_INFO}")"
     [[ -z "${VERSION}" || -z "${VERSION_PATH}" ]] && {
-      builtin echo "texenv: no version set (use 'texenv global <version>' or 'texenv local <version>')" >&2
+      builtin echo "${SCRIPT_NAME%%-*}: no version set (use '${SCRIPT_NAME%%-*} global <version>' or '${SCRIPT_NAME%%-*} local <version>')" >&2
       exit 1
     }
     CMD="${1:-}"
     shift || true
     [[ -z "${CMD}" ]] && {
-      builtin echo "texenv: no command specified" >&2
+      builtin echo "${SCRIPT_NAME%%-*}: no command specified" >&2
       exit 1
     }
     CMD_PATH="${TEXENV_VERSIONS}/${VERSION}/bin/${TEXENV_PLATFORM}/${CMD}"
     [[ -x "${CMD_PATH}" ]] || {
-      builtin echo "texenv: command '${CMD}' not found in version '${VERSION}'" >&2
+      builtin echo "${SCRIPT_NAME%%-*}: command '${CMD}' not found in version '${VERSION}'" >&2
       exit 1
     }
     export TEXMFHOME="${TEXMF_HOME:-}"
     export PATH="${TEXENV_VERSIONS}/${VERSION}/bin/${TEXENV_PLATFORM}:${PATH}"
     "${CMD_PATH}" "${@}"
   else
-    builtin echo "texenv: no version set (use 'texenv global <version>' or 'texenv local <version>')" >&2
+    builtin echo "${SCRIPT_NAME%%-*}: no version set (use '${SCRIPT_NAME%%-*} global <version>' or '${SCRIPT_NAME%%-*} local <version>')" >&2
     exit 1
   fi
 }

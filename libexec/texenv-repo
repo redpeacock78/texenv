@@ -7,6 +7,7 @@ set -euo pipefail
 # Manage tlmgr repository
 cmdRepo() {
   declare libs
+  declare cmdHelp
   declare executeRun
   declare resolveVersion
   declare VERSION
@@ -24,10 +25,11 @@ cmdRepo() {
   declare regex
   SCRIPT_NAME="${0##*/}"
   libs="$(builtin type -P "texenv-libs" || true)"
+  cmdHelp="$(builtin type -P "texenv-help" || true)"
   executeRun="${libs} executeRun"
   resolveVersion="${libs} resolveVersion"
-  [[ -z "${libs}" ]] && {
-    builtin echo "texenv: required component(s) missing" >&2
+  [[ -z "${libs}" || -z "${cmdHelp}" ]] && {
+    builtin echo "${SCRIPT_NAME%%-*}: required component(s) missing" >&2
     exit 1
   }
   case "${1:-}" in
@@ -44,20 +46,13 @@ cmdRepo() {
       RESET=1
       ;;
     -h | --help)
-      builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SCRIPT_NAME##*-} [options] [<repo>]"
-      builtin echo "Manage tlmgr repository"
-      builtin echo "Options:"
-      builtin echo "  -s, --show           Show current tlmgr repository"
-      builtin echo "  -m, --mirror <repo>  Set tlmgr repository to specified mirror"
-      builtin echo "  -r, --reset          Reset tlmgr repository to default"
-      builtin echo "  -h, --help           Show this help message"
-      exit 0
+      builtin exec "${cmdHelp}" "${SCRIPT_NAME##*-}"
       ;;
   esac
   TEX_VERSION_INFO="$(${resolveVersion} || true)"
   VERSION="$(awk -F": " '/TinyTeX-Version: /{print $2}' <<< "${TEX_VERSION_INFO}")"
   [[ -z "${VERSION}" ]] && {
-    builtin echo "texenv: no version set (use 'texenv global <version>' or 'texenv local <version>')" >&2
+    builtin echo "${SCRIPT_NAME%%-*}: no version set (use '${SCRIPT_NAME%%-*} global <version>' or '${SCRIPT_NAME%%-*} local <version>')" >&2
     exit 1
   }
   regex='^(https?|ftp|file)://.*'
@@ -66,43 +61,43 @@ cmdRepo() {
   [[ -f "${MIRROR_FILE}" ]] && {
     UNIQUE_REPO="$(cat "${MIRROR_FILE}")"
     [[ -z "${UNIQUE_REPO}" ]] && {
-      builtin echo "texenv: no mirror repository specified" >&2
+      builtin echo "${SCRIPT_NAME%%-*}: no mirror repository specified" >&2
       exit 1
     }
   }
   CURRENT_REPO="$(${executeRun} tlmgr option repository | awk -F": " '{print $2}')"
   if [[ "${MIRROR:-}" == 1 ]]; then
     [[ -d "${TEXENV_CONFIG}" ]] || {
-      builtin echo "texenv: run 'texenv init' first" >&2
+      builtin echo "${SCRIPT_NAME%%-*}: run '${SCRIPT_NAME%%-*} init' first" >&2
       exit 1
     }
     [[ -z "${MIRROR_REPO}" ]] && {
-      builtin echo "texenv: no mirror repository specified" >&2
+      builtin echo "${SCRIPT_NAME%%-*}: no mirror repository specified" >&2
       exit 1
     }
     [[ ! "${MIRROR_REPO}" =~ ${regex} ]] && {
-      builtin echo "texenv: invalid mirror repository URL '${MIRROR_REPO}'" >&2
+      builtin echo "${SCRIPT_NAME%%-*}: invalid mirror repository URL '${MIRROR_REPO}'" >&2
       exit 1
     }
     [[ "${MIRROR_REPO}" == "${CURRENT_REPO}" ]] && {
-      builtin echo "texenv: Repository is already set to the specified mirror repository."
+      builtin echo "${SCRIPT_NAME%%-*}: Repository is already set to the specified mirror repository."
       return 0
     }
     REPO="${MIRROR_REPO}"
   elif [[ "${RESET:-}" == 1 ]]; then
     REPO="${DEFAULT_REPO}"
     [[ "${REPO}" == "${CURRENT_REPO}" ]] && {
-      builtin echo "texenv: Repository is already set to the default repository."
+      builtin echo "${SCRIPT_NAME%%-*}: Repository is already set to the default repository."
       return 0
     }
     [[ -f "${MIRROR_FILE}" ]] && rm -f "${MIRROR_FILE}"
   elif [[ -n "${UNIQUE_REPO:-}" ]]; then
     [[ ! "${UNIQUE_REPO}" =~ ${regex} ]] && {
-      builtin echo "texenv: invalid mirror repository URL '${UNIQUE_REPO}'" >&2
+      builtin echo "${SCRIPT_NAME%%-*}: invalid mirror repository URL '${UNIQUE_REPO}'" >&2
       exit 1
     }
     [[ "${UNIQUE_REPO}" == "${CURRENT_REPO}" ]] && {
-      builtin echo "texenv: Repository is already set to the unique mirror repository."
+      builtin echo "${SCRIPT_NAME%%-*}: Repository is already set to the unique mirror repository."
       return 0
     }
     REPO="${UNIQUE_REPO}"
@@ -110,13 +105,13 @@ cmdRepo() {
     VERSION_YEAR="$(${executeRun} tlmgr --version | awk 'END{print $5}')"
     CURRENT_YEAR="$(date +%Y)"
     [[ -z "${VERSION_YEAR}" ]] && {
-      builtin echo "texenv: failed to determine TeX Live version year" >&2
+      builtin echo "${SCRIPT_NAME%%-*}: failed to determine TeX Live version year" >&2
       exit 1
     }
     if [[ "${VERSION_YEAR:-}" == "${CURRENT_YEAR}" ]]; then
       REPO="${DEFAULT_REPO}"
       [[ "${REPO}" == "${CURRENT_REPO}" ]] && {
-        builtin echo "texenv: Repository is already set to the latest TeX Live repository."
+        builtin echo "${SCRIPT_NAME%%-*}: Repository is already set to the latest TeX Live repository."
         return 0
       }
     else
@@ -126,20 +121,20 @@ cmdRepo() {
         REPO="${DEFAULT_REPO}"
       }
       [[ "${REPO}" == "${CURRENT_REPO}" ]] && {
-        builtin echo "texenv: Repository is already set to the latest TeX Live repository."
+        builtin echo "${SCRIPT_NAME%%-*}: Repository is already set to the latest TeX Live repository."
         return 0
       }
     fi
   fi
   {
-    builtin echo "texenv: Setting tlmgr repository to ${REPO}..."
+    builtin echo "${SCRIPT_NAME%%-*}: Setting tlmgr repository to ${REPO}..."
     [[ "${MIRROR:-}" == "1" ]] && {
       mkdir -p "${TEXENV_CONFIG}/${VERSION}"
       builtin echo "${REPO}" > "${MIRROR_FILE}"
     }
     ${executeRun} tlmgr option repository "${REPO}"
   } || {
-    builtin echo "texenv: failed to set tlmgr repository" >&2
+    builtin echo "${SCRIPT_NAME%%-*}: failed to set tlmgr repository" >&2
     exit 1
   }
 }

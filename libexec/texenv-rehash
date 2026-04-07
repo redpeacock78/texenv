@@ -15,18 +15,19 @@ cmdRehash() {
   declare TMP_SHIMS
   declare SHIM_SCRIPT_PATH
   declare BACKUP_SHIMS
+  declare cmdHelp
   SCRIPT_NAME="${0##*/}"
+  cmdHelp="$(builtin type -P "texenv-help" || true)"
+  [[ -z "${cmdHelp}" ]] && {
+    builtin echo "${SCRIPT_NAME%%-*}: required component(s) missing" >&2
+    exit 1
+  }
   case "${1:-}" in
     -f | --force)
       FORCE_REHASH=1
       ;;
     -h | --help)
-      builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SCRIPT_NAME##*-}"
-      builtin echo "Rebuild shims for installed TeX Live versions"
-      builtin echo "Options:"
-      builtin echo "  -f, --force  Force rebuild"
-      builtin echo "  -h, --help   Show this help message"
-      exit 0
+      builtin exec "${cmdHelp}" "${SCRIPT_NAME##*-}"
       ;;
   esac
   [[ ! -d "${TEXENV_VERSIONS}" ]] && {

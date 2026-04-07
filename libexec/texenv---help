@@ -4,9 +4,12 @@ declare -r TEXENV_DEBUG
 [[ "${TEXENV_DEBUG}" == 1 ]] && set -x
 set -euo pipefail
 
+declare SCRIPT_NAME
+declare CMD_PATH
+SCRIPT_NAME="${0##*/}"
 CMD_PATH="$(builtin type -P "texenv-help" || true)"
 [[ -z "${CMD_PATH}" ]] && {
-  builtin echo "texenv: help component missing" >&2
+  builtin echo "${SCRIPT_NAME%%-*}: help component(s) missing" >&2
   exit 1
 }
 exec "${CMD_PATH}"

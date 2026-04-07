@@ -9,35 +9,33 @@ cmdUninstall() {
   declare VERSION
   declare SCRIPT_NAME
   declare CONFIG_DIR
+  declare cmdHelp
   declare cmdRehash
   SCRIPT_NAME="${0##*/}"
+  cmdHelp="$(builtin type -P "texenv-help" || true)"
   cmdRehash="$(builtin type -P 'texenv-rehash' || true)"
-  [[ -z "${cmdRehash}" ]] && {
-    builtin echo "texenv: required component(s) missing" >&2
+  [[ -z "${cmdHelp}" || -z "${cmdRehash}" ]] && {
+    builtin echo "${SCRIPT_NAME%%-*}: required component(s) missing" >&2
     exit 1
   }
   case "${1:-}" in
     -h | --help)
-      builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SCRIPT_NAME##*-} [options] <version>"
-      builtin echo "Uninstall specified TeX Live version"
-      builtin echo "Options:"
-      builtin echo "  -h, --help  Show this help message"
-      exit 0
+      builtin exec "${cmdHelp}" "${SCRIPT_NAME##*-}"
       ;;
     *)
       VERSION="${1:-}"
       ;;
   esac
   [[ -d "${TEXENV_ROOT}" && -d "${TEXENV_VERSIONS}" && -d "${TEXENV_CONFIG}" && -d "${TEXENV_SHIMS}" ]] || {
-    builtin echo "texenv: run 'texenv init' first," >&2
+    builtin echo "${SCRIPT_NAME%%-*}: run '${SCRIPT_NAME%%-*} init' first," >&2
     exit 1
   }
   [[ -z "${VERSION}" ]] && {
-    builtin echo "USAGE: texenv uninstall <version>" >&2
+    builtin echo "USAGE: ${SCRIPT_NAME%%-*} uninstall <version>" >&2
     exit 1
   }
   [[ -d "${TEXENV_VERSIONS}/${VERSION}" ]] || {
-    builtin echo "texenv: version ${VERSION} is not installed" >&2
+    builtin echo "${SCRIPT_NAME%%-*}: version ${VERSION} is not installed" >&2
     exit 1
   }
   {
@@ -48,7 +46,7 @@ cmdUninstall() {
     "${cmdRehash}" > /dev/null
     builtin echo "TeX Live version ${VERSION} uninstalled successfully."
   } || {
-    builtin echo "texenv: failed to uninstall version ${VERSION}" >&2
+    builtin echo "${SCRIPT_NAME%%-*}: failed to uninstall version ${VERSION}" >&2
     exit 1
   }
 }

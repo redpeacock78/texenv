@@ -8,27 +8,25 @@ set -euo pipefail
 cmdEnv() {
   declare libs
   declare kpsewhich
+  declare cmdHelp
   declare cmdRepo
   declare cmdVersion
   declare cmdVersions
   declare SCRIPT_NAME
   SCRIPT_NAME="${0##*/}"
   libs="$(builtin type -P "texenv-libs" || true)"
+  cmdHelp="$(builtin type -P "texenv-help" || true)"
   cmdRepo="$(builtin type -P "texenv-repo" || true)"
   cmdVersion="$(builtin type -P "texenv-version" || true)"
   cmdVersions="$(builtin type -P "texenv-versions" || true)"
   kpsewhich="${libs} executeRun kpsewhich"
-  [[ -z "${libs}" || -z "${cmdRepo}" || -z "${cmdVersion}" || -z "${cmdVersions}" ]] && {
-    builtin echo "texenv: required component(s) missing" >&2
+  [[ -z "${libs}" || -z "${cmdHelp}" || -z "${cmdRepo}" || -z "${cmdVersion}" || -z "${cmdVersions}" ]] && {
+    builtin echo "${SCRIPT_NAME%%-*}: required component(s) missing" >&2
     exit 1
   }
   case "${1:-}" in
     -h | --help)
-      builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SCRIPT_NAME##*-} [options]"
-      builtin echo "Display texenv environment information"
-      builtin echo "Options:"
-      builtin echo "  -h, --help  Show this help message"
-      exit 0
+      builtin exec "${cmdHelp}" "${SCRIPT_NAME##*-}"
       ;;
   esac
   cat << EOF

@@ -6,6 +6,19 @@ set -euo pipefail
 
 cmdShims() {
   declare RESULT
+  declare cmdHelp
+  declare SCRIPT_NAME
+  SCRIPT_NAME="${0##*/}"
+  cmdHelp="$(builtin type -P "texenv-help" || true)"
+  [[ -z "${cmdHelp}" ]] && {
+    builtin echo "${SCRIPT_NAME%%-*}: required component(s) missing" >&2
+    exit 1
+  }
+  case "${1:-}" in
+    -h | --help)
+      builtin exec "${cmdHelp}" "${SCRIPT_NAME##*-}"
+      ;;
+  esac
   RESULT="$(find "${TEXENV_SHIMS}" -maxdepth 1 -type l)"
   [[ -z "${RESULT}" ]] && {
     builtin echo "texenv: no shims generated" >&2
@@ -14,4 +27,4 @@ cmdShims() {
   sort <<< "${RESULT}"
 }
 
-cmdShims
+cmdShims "${@}"

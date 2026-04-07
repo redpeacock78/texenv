@@ -4,35 +4,332 @@ declare -r TEXENV_DEBUG
 [[ "${TEXENV_DEBUG}" == 1 ]] && set -x
 set -euo pipefail
 
+helpCommands() {
+  declare SCRIPT_NAME
+  declare SUBCMD_NAME
+  SCRIPT_NAME="${0##*/}"
+  SUBCMD_NAME="${FUNCNAME[0]##help}"
+  [[ "${1:-}" != "desc" ]] && builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SUBCMD_NAME,,} [options]"
+  builtin echo "List available commands"
+  [[ "${1:-}" != "desc" ]] && builtin echo "Options:"
+  [[ "${1:-}" != "desc" ]] && builtin echo "  -h, --help  Show this help message"
+}
+
+helpEnv() {
+  declare SCRIPT_NAME
+  declare SUBCMD_NAME
+  SCRIPT_NAME="${0##*/}"
+  SUBCMD_NAME="${FUNCNAME[0]##help}"
+  [[ "${1:-}" != "desc" ]] && builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SUBCMD_NAME,,} [options]"
+  builtin echo "Display ${SCRIPT_NAME%%-*} environment information"
+  [[ "${1:-}" != "desc" ]] && builtin echo "Options:"
+  [[ "${1:-}" != "desc" ]] && builtin echo "  -h, --help  Show this help message"
+}
+
+helpExec() {
+  declare SCRIPT_NAME
+  declare SUBCMD_NAME
+  SCRIPT_NAME="${0##*/}"
+  SUBCMD_NAME="${FUNCNAME[0]##help}"
+  [[ "${1:-}" != "desc" ]] && builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SUBCMD_NAME,,} <cmd> [args]"
+  builtin echo "Execute command in current TeX Live version"
+  [[ "${1:-}" != "desc" ]] && builtin echo "Options:"
+  [[ "${1:-}" != "desc" ]] && builtin echo "  -h, --help  Show this help message"
+}
+
+helpFreeze() {
+  declare SCRIPT_NAME
+  declare SUBCMD_NAME
+  SCRIPT_NAME="${0##*/}"
+  SUBCMD_NAME="${FUNCNAME[0]##help}"
+  [[ "${1:-}" != "desc" ]] && builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SUBCMD_NAME,,} [options]"
+  builtin echo "Freeze installed TeX packages to requirements file"
+  [[ "${1:-}" != "desc" ]] && builtin echo "Options:"
+  [[ "${1:-}" != "desc" ]] && builtin echo "  -l, --lock  Freeze to lock file with TeX Live version"
+  [[ "${1:-}" != "desc" ]] && builtin echo "  -h, --help  Show this help message"
+}
+
+helpGlobal() {
+  declare SCRIPT_NAME
+  declare SUBCMD_NAME
+  SCRIPT_NAME="${0##*/}"
+  SUBCMD_NAME="${FUNCNAME[0]##help}"
+  [[ "${1:-}" != "desc" ]] && builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SUBCMD_NAME,,} [options] <version>"
+  builtin echo "Set global TeX Live version"
+  [[ "${1:-}" != "desc" ]] && builtin echo "Options:"
+  [[ "${1:-}" != "desc" ]] && builtin echo "  -h, --help  Show this help message"
+}
+
+helpInit() {
+  declare SCRIPT_NAME
+  declare SUBCMD_NAME
+  SCRIPT_NAME="${0##*/}"
+  SUBCMD_NAME="${FUNCNAME[0]##help}"
+  [[ "${1:-}" != "desc" ]] && builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SUBCMD_NAME,,} [options]"
+  builtin echo "Initialize ${SCRIPT_NAME%%-*} environment"
+  [[ "${1:-}" != "desc" ]] && builtin echo "Options:"
+  [[ "${1:-}" != "desc" ]] && builtin echo "  -           Output shell commands to set up ${SCRIPT_NAME%%-*} environment"
+  [[ "${1:-}" != "desc" ]] && builtin echo "  -h, --help  Show this help message"
+}
+
+helpInstall() {
+  declare SCRIPT_NAME
+  declare SUBCMD_NAME
+  SCRIPT_NAME="${0##*/}"
+  SUBCMD_NAME="${FUNCNAME[0]##help}"
+  case "${1:-}" in
+    -l | --list)
+      builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SUBCMD_NAME,,} [-l|--list] [options]"
+      builtin echo "List available TeX Live versions"
+      builtin echo "Options:"
+      builtin echo "  -a, --all   List all available versions"
+      builtin echo "  -h, --help  Show this help message"
+      ;;
+    *)
+      [[ "${1:-}" != "desc" ]] && builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SUBCMD_NAME,,} [options] <version>"
+      builtin echo "Install specified TeX Live version"
+      [[ "${1:-}" != "desc" ]] && builtin echo "Options:"
+      [[ "${1:-}" != "desc" ]] && builtin echo "  -l, --list  List available versions"
+      [[ "${1:-}" != "desc" ]] && builtin echo "  -f, --force Force reinstall if version is already installed"
+      [[ "${1:-}" != "desc" ]] && builtin echo "  -h, --help  Show this help message"
+      ;;
+  esac
+}
+
+helpLocal() {
+  declare SCRIPT_NAME
+  declare SUBCMD_NAME
+  SCRIPT_NAME="${0##*/}"
+  SUBCMD_NAME="${FUNCNAME[0]##help}"
+  [[ "${1:-}" != "desc" ]] && builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SUBCMD_NAME,,} [options] <version>"
+  builtin echo "Set local TeX Live version"
+  [[ "${1:-}" != "desc" ]] && builtin echo "Options:"
+  [[ "${1:-}" != "desc" ]] && builtin echo "  -h, --help  Show this help message"
+}
+
+helpRehash() {
+  declare SCRIPT_NAME
+  declare SUBCMD_NAME
+  SCRIPT_NAME="${0##*/}"
+  SUBCMD_NAME="${FUNCNAME[0]##help}"
+  [[ "${1:-}" != "desc" ]] && builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SUBCMD_NAME,,} [options]"
+  builtin echo "Rebuild shims for installed TeX Live versions"
+  [[ "${1:-}" != "desc" ]] && builtin echo "Options:"
+  [[ "${1:-}" != "desc" ]] && builtin echo "  -f, --force  Force rebuild"
+  [[ "${1:-}" != "desc" ]] && builtin echo "  -h, --help   Show this help message"
+}
+
+helpRepo() {
+  declare SCRIPT_NAME
+  declare SUBCMD_NAME
+  SCRIPT_NAME="${0##*/}"
+  SUBCMD_NAME="${FUNCNAME[0]##help}"
+  [[ "${1:-}" != "desc" ]] && builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SUBCMD_NAME,,} [options] [<repo>]"
+  builtin echo "Manage tlmgr repository"
+  [[ "${1:-}" != "desc" ]] && builtin echo "Options:"
+  [[ "${1:-}" != "desc" ]] && builtin echo "  -s, --show           Show current tlmgr repository"
+  [[ "${1:-}" != "desc" ]] && builtin echo "  -m, --mirror <repo>  Set tlmgr repository to specified mirror"
+  [[ "${1:-}" != "desc" ]] && builtin echo "  -r, --reset          Reset tlmgr repository to default"
+  [[ "${1:-}" != "desc" ]] && builtin echo "  -h, --help           Show this help message"
+}
+
+helpRestore() {
+  declare SCRIPT_NAME
+  declare SUBCMD_NAME
+  SCRIPT_NAME="${0##*/}"
+  SUBCMD_NAME="${FUNCNAME[0]##help}"
+  [[ "${1:-}" != "desc" ]] && builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SUBCMD_NAME,,} [options]"
+  builtin echo "Restore TeX packages from requirements file"
+  [[ "${1:-}" != "desc" ]] && builtin echo "Options:"
+  [[ "${1:-}" != "desc" ]] && builtin echo "  -h, --help  Show this help message"
+}
+
+helpRoot() {
+  declare SCRIPT_NAME
+  declare SUBCMD_NAME
+  SCRIPT_NAME="${0##*/}"
+  SUBCMD_NAME="${FUNCNAME[0]##help}"
+  [[ "${1:-}" != "desc" ]] && builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SUBCMD_NAME,,} [options]"
+  builtin echo "Show ${SCRIPT_NAME%%-*} root directory"
+  [[ "${1:-}" != "desc" ]] && builtin echo "Options:"
+  [[ "${1:-}" != "desc" ]] && builtin echo "  -h, --help  Show this help message"
+}
+
+helpShell() {
+  declare SCRIPT_NAME
+  declare SUBCMD_NAME
+  SCRIPT_NAME="${0##*/}"
+  SUBCMD_NAME="${FUNCNAME[0]##help}"
+  [[ "${1:-}" != "desc" ]] && builtin echo "builtin echo 'Usage: ${SCRIPT_NAME%%-*} ${SUBCMD_NAME,,} [options] [version]'"
+  builtin echo "builtin echo 'Spawn a new shell with specified TeX Live version'"
+  [[ "${1:-}" != "desc" ]] && builtin echo "builtin echo 'If no version is specified, the currently configured shell-specific version is used'"
+  [[ "${1:-}" != "desc" ]] && builtin echo "builtin echo 'Options:'"
+  [[ "${1:-}" != "desc" ]] && builtin echo "builtin echo '  -h, --help  Show this help message'"
+}
+
+helpShims() {
+  declare SCRIPT_NAME
+  declare SUBCMD_NAME
+  SCRIPT_NAME="${0##*/}"
+  SUBCMD_NAME="${FUNCNAME[0]##help}"
+  [[ "${1:-}" != "desc" ]] && builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SUBCMD_NAME,,} [options]"
+  builtin echo "Show executable file(s) from ${SCRIPT_NAME%%-*} shims directory"
+  [[ "${1:-}" != "desc" ]] && builtin echo "Options:"
+  [[ "${1:-}" != "desc" ]] && builtin echo "  -h, --help  Show this help message"
+}
+
+helpUninstall() {
+  declare SCRIPT_NAME
+  declare SUBCMD_NAME
+  SCRIPT_NAME="${0##*/}"
+  SUBCMD_NAME="${FUNCNAME[0]##help}"
+  [[ "${1:-}" != "desc" ]] && builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SUBCMD_NAME,,} [options] <version>"
+  builtin echo "Uninstall specified TeX Live version"
+  [[ "${1:-}" != "desc" ]] && builtin echo "Options:"
+  [[ "${1:-}" != "desc" ]] && builtin echo "  -h, --help  Show this help message"
+}
+
+helpVersion() {
+  declare SCRIPT_NAME
+  declare SUBCMD_NAME
+  SCRIPT_NAME="${0##*/}"
+  SUBCMD_NAME="${FUNCNAME[0]##help}"
+  [[ "${1:-}" != "desc" ]] && builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SUBCMD_NAME,,} [options]"
+  builtin echo "Show current TeX Live version"
+  [[ "${1:-}" != "desc" ]] && builtin echo "Options:"
+  [[ "${1:-}" != "desc" ]] && builtin echo "  -h, --help  Show this help message"
+}
+
+helpVersions() {
+  declare SCRIPT_NAME
+  declare SUBCMD_NAME
+  SCRIPT_NAME="${0##*/}"
+  SUBCMD_NAME="${FUNCNAME[0]##help}"
+  [[ "${1:-}" != "desc" ]] && builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SUBCMD_NAME,,} [options]"
+  builtin echo "List installed TeX Live versions"
+  [[ "${1:-}" != "desc" ]] && builtin echo "Options:"
+  [[ "${1:-}" != "desc" ]] && builtin echo "  -h, --help  Show this help message"
+}
+
+helpWhence() {
+  declare SCRIPT_NAME
+  declare SUBCMD_NAME
+  SCRIPT_NAME="${0##*/}"
+  SUBCMD_NAME="${FUNCNAME[0]##help}"
+  [[ "${1:-}" != "desc" ]] && builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SUBCMD_NAME,,} <cmd>"
+  builtin echo "Show path to command in all installed TeX Live versions"
+  [[ "${1:-}" != "desc" ]] && builtin echo "Options:"
+  [[ "${1:-}" != "desc" ]] && builtin echo "  -h, --help  Show this help message"
+}
+
+helpWhere() {
+  declare SCRIPT_NAME
+  declare SUBCMD_NAME
+  SCRIPT_NAME="${0##*/}"
+  SUBCMD_NAME="${FUNCNAME[0]##help}"
+  [[ "${1:-}" != "desc" ]] && builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SUBCMD_NAME,,} <cmd>"
+  builtin echo "Show path to command in current TeX Live version"
+  [[ "${1:-}" != "desc" ]] && builtin echo "Options:"
+  [[ "${1:-}" != "desc" ]] && builtin echo "  -h, --help  Show this help message"
+}
+
 cmdHelp() {
   declare SCRIPT_NAME
   SCRIPT_NAME="${0##*/}"
   cat << EOF
 USAGE: ${SCRIPT_NAME%%-*} <command> [<args>]
 Commands:
-  commands                      List available commands
-  init                          Initialize ${SCRIPT_NAME%%-*} environment
-  install [options] <version>   Install specified TeX Live version
-  uninstall <version>           Uninstall specified TeX Live version
-  version                       Show current TeX Live version
-  versions                      List installed TeX Live versions
-  shell <version>               Spawn a new shell with specified TeX Live version
-  global <version>              Set global TeX Live version
-  local <version>               Set local TeX Live version
-  repo [options]                Manage tlmgr repository
-  exec <cmd> [args]             Execute command in current TeX Live version
-  rehash [options]              Rebuild shims for installed TeX Live versions
-  freeze [options]              Freeze installed TeX packages to requirements file
-  restore                       Restore TeX packages from requirements file
-  which <cmd>                   Show path to shim for specified command
-  where <cmd>                   Show path to command in current TeX Live version
-  whence <cmd>                  Show path to command in all installed TeX Live versions
-  env                           Display ${SCRIPT_NAME%%-*} environment information
-  root                          Show ${SCRIPT_NAME%%-*} root directory
-  shims                         Show executable file(s) from ${SCRIPT_NAME%%-*} shims directory
+  commands                      $(helpCommands desc)
+  init                          $(helpInit desc)
+  install [options] <version>   $(helpInstall desc)
+  uninstall <version>           $(helpUninstall desc)
+  version                       $(helpVersion desc)
+  versions                      $(helpVersions desc)
+  shell <version>               $(builtin eval "$(helpShell desc)")
+  global <version>              $(helpGlobal desc)
+  local <version>               $(helpLocal desc)
+  repo [options]                $(helpRepo desc)
+  exec <cmd> [args]             $(helpExec desc)
+  rehash [options]              $(helpRehash desc)
+  freeze [options]              $(helpFreeze desc)
+  restore                       $(helpRestore desc)
+  which <cmd>                   $(helpWhich desc)
+  where <cmd>                   $(helpWhere desc)
+  whence <cmd>                  $(helpWhence desc)
+  env                           $(helpEnv desc)
+  root                          $(helpRoot desc)
+  shims                         $(helpShims desc)
   help                          Show this help message
 EOF
-  exit 0
 }
 
-cmdHelp
+main() {
+  case "${1:-}" in
+    commands)
+      helpCommands
+      ;;
+    env)
+      helpEnv
+      ;;
+    exec)
+      helpExec
+      ;;
+    freeze)
+      helpFreeze
+      ;;
+    global)
+      helpGlobal
+      ;;
+    init)
+      helpInit
+      ;;
+    install)
+      shift || true
+      helpInstall "${@}"
+      ;;
+    local)
+      helpLocal
+      ;;
+    rehash)
+      helpRehash
+      ;;
+    repo)
+      helpRepo
+      ;;
+    restore)
+      helpRestore
+      ;;
+    root)
+      helpRoot
+      ;;
+    shell)
+      builtin eval "$(helpShell)"
+      ;;
+    shims)
+      helpShims
+      ;;
+    uninstall)
+      helpUninstall
+      ;;
+    version)
+      helpVersion
+      ;;
+    versions)
+      helpVersions
+      ;;
+    whence)
+      helpWhence
+      ;;
+    where)
+      helpWhere
+      ;;
+    which)
+      helpWhich
+      ;;
+    *)
+      cmdHelp
+      ;;
+  esac
+}
+
+main "${@}"

@@ -14,21 +14,19 @@ cmdRestore() {
   declare REQUIRE_LIST
   declare SCRIPT_NAME
   declare libs
+  declare cmdHelp
   declare cmdExec
   SCRIPT_NAME="${0##*/}"
   libs="$(builtin type -P "texenv-libs" || true)"
+  cmdHelp="$(builtin type -P "texenv-help" || true)"
   cmdExec="$(builtin type -P "texenv-exec" || true)"
-  [[ -z "${libs}" || -z "${cmdExec}" ]] && {
-    builtin echo "texenv: required component(s) missing" >&2
+  [[ -z "${libs}" || -z "${cmdHelp}" || -z "${cmdExec}" ]] && {
+    builtin echo "${SCRIPT_NAME%%-*}: required component(s) missing" >&2
     exit 1
   }
   case "${1:-}" in
     -h | --help)
-      builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SCRIPT_NAME##*-} [options]"
-      builtin echo "Restore TeX packages from requirements file"
-      builtin echo "Options:"
-      builtin echo "  -h, --help  Show this help message"
-      exit 0
+      builtin exec "${cmdHelp}" "${SCRIPT_NAME##*-}"
       ;;
   esac
   if [[ -f "${TEX_REQUIREMENTS_LOCK_FILE}" ]]; then
@@ -37,14 +35,14 @@ cmdRestore() {
   elif [[ -f "${TEX_REQUIREMENTS_FILE}" ]]; then
     FILE_NAME="${TEX_REQUIREMENTS_FILE}"
   else
-    builtin echo "texenv: no requirements file found" >&2
+    builtin echo "${SCRIPT_NAME%%-*}: no requirements file found" >&2
     exit 1
   fi
   TEX_VERSION_INFO="$("${libs}" resolveVersion || true)"
   TEX_VERSION="$(awk -F": " '/TinyTeX-Version: /{print $2}' <<< "${TEX_VERSION_INFO}")"
   LOCK_TEX_VERSION="$(awk -F ": " 'NR==1{print $2}' "${FILE_NAME}")"
   [[ -n "${TEX_VERSION:-}" && -n "${LOCK_TEX_VERSION:-}" ]] && (("${TEX_VERSION%%.*}" < "${LOCK_TEX_VERSION%%.*}")) && {
-    builtin echo "texenv: TeX Live version ${TEX_VERSION%%.*} is older than the required version ${LOCK_TEX_VERSION%%.*}" >&2
+    builtin echo "${SCRIPT_NAME%%-*}: TeX Live version ${TEX_VERSION%%.*} is older than the required version ${LOCK_TEX_VERSION%%.*}" >&2
     exit 1
   }
   {
@@ -56,7 +54,7 @@ cmdRestore() {
     }
     "${cmdExec}" tlmgr install ${REQUIRE_LIST}
   } || {
-    builtin echo "texenv: failed to restore TeX packages" >&2
+    builtin echo "${SCRIPT_NAME%%-*}: failed to restore TeX packages" >&2
     exit 1
   }
 }

@@ -9,13 +9,15 @@ cmdFreeze() {
   declare FILE
   declare TEX_VERSION
   declare SCRIPT_NAME
+  declare cmdHelp
   declare cmdExec
   declare cmdVersion
   SCRIPT_NAME="${0##*/}"
+  cmdHelp="$(builtin type -P "texenv-help" || true)"
   cmdExec="$(builtin type -P "texenv-exec" || true)"
   cmdVersion="$(builtin type -P "texenv-version" || true)"
-  [[ -z "${cmdExec}" || -z "${cmdVersion}" ]] && {
-    builtin echo "texenv: required component(s) missing" >&2
+  [[ -z "${cmdHelp}" || -z "${cmdExec}" || -z "${cmdVersion}" ]] && {
+    builtin echo "${SCRIPT_NAME%%-*}: required component(s) missing" >&2
     exit 1
   }
   "${cmdVersion}" > /dev/null
@@ -26,19 +28,14 @@ cmdFreeze() {
       TEX_VERSION="$("${cmdExec}" tlmgr --version | awk 'END{print $5}')"
       ;;
     -h | --help)
-      builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SCRIPT_NAME##*-} [options]"
-      builtin echo "Freeze installed TeX packages to requirements file"
-      builtin echo "Options:"
-      builtin echo "  -l, --lock  Freeze to lock file with TeX Live version"
-      builtin echo "  -h, --help  Show this help message"
-      exit 0
+      builtin exec "${cmdHelp}" "${SCRIPT_NAME##*-}"
       ;;
   esac
   {
     builtin echo "Freezing TeX packages to ${FILE}..."
     cat <([[ -z "${TEX_VERSION:-}" ]] || builtin echo "# TeX Live: ${TEX_VERSION}") <("${cmdExec}" tlmgr info --only-installed --data name) > "${FILE}"
   } || {
-    builtin echo "texenv: failed to freeze TeX packages" >&2
+    builtin echo "${SCRIPT_NAME%%-*}: failed to freeze TeX packages" >&2
     exit 1
   }
 }

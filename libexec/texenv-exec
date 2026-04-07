@@ -6,6 +6,7 @@ set -euo pipefail
 
 # Execute command in current TeX Live version
 cmdExec() {
+  declare cmdHelp
   declare cmdRepo
   declare cmdRehash
   declare libs
@@ -13,20 +14,17 @@ cmdExec() {
   declare SCRIPT_NAME
   SCRIPT_NAME="${0##*/}"
   libs="$(builtin type -P "texenv-libs" || true)"
+  cmdHelp="$(builtin type -P "texenv-help" || true)"
   cmdRepo="$(builtin type -P "texenv-repo" || true)"
   cmdRehash="$(builtin type -P "texenv-rehash" || true)"
   executeRun="${libs} executeRun"
-  [[ -z "${libs}" || -z "${cmdRepo}" || -z "${cmdRehash}" ]] && {
-    builtin echo "texenv: required component(s) missing" >&2
+  [[ -z "${libs}" || -z "${cmdHelp}" || -z "${cmdRepo}" || -z "${cmdRehash}" ]] && {
+    builtin echo "${SCRIPT_NAME%%-*}: required component(s) missing" >&2
     exit 1
   }
   case "${1:-}" in
     -h | --help)
-      builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SCRIPT_NAME##*-} <cmd> [args]"
-      builtin echo "Execute command in current TeX Live version"
-      builtin echo "Options:"
-      builtin echo "  -h, --help  Show this help message"
-      exit 0
+      builtin exec "${cmdHelp}" "${SCRIPT_NAME##*-}"
       ;;
   esac
   {

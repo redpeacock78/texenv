@@ -6,14 +6,16 @@ set -euo pipefail
 
 cmdCommands() {
   declare SCRIPT_NAME
+  declare cmdHelp
   SCRIPT_NAME="${0##*/}"
+  cmdHelp="$(builtin type -P "texenv-help" || true)"
+  [[ -z "${cmdHelp}" ]] && {
+    builtin echo "${SCRIPT_NAME%%-*}: required component(s) missing" >&2
+    exit 1
+  }
   case "${1:-}" in
     -h | --help)
-      builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SCRIPT_NAME##*-} [options]"
-      builtin echo "List available commands"
-      builtin echo "Options:"
-      builtin echo "  -h, --help  Show this help message"
-      exit 0
+      builtin exec "${cmdHelp}" "${SCRIPT_NAME##*-}"
       ;;
   esac
   find "${TEXENV_ROOT}/libexec" -maxdepth 1 -type f -name "texenv-*" |

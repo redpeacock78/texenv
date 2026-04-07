@@ -7,25 +7,26 @@ set -euo pipefail
 cmdShell() {
   declare INSTALLED_VERSIONS
   declare SCRIPT_NAME
+  declare cmdHelp
   SCRIPT_NAME="${0##*/}"
+  cmdHelp="$(builtin type -P "texenv-help" || true)"
+  [[ -z "${cmdHelp}" ]] && {
+    builtin echo "builtin echo \"${SCRIPT_NAME%%-*}: required component(s) missing\""
+    exit 1
+  }
   case "${1:-}" in
     -h | --help)
-      builtin echo "builtin echo 'Usage: ${SCRIPT_NAME%%-*} ${SCRIPT_NAME##*-} [version]'"
-      builtin echo 'builtin echo "Spawn a new shell with specified TeX Live version"'
-      builtin echo 'builtin echo "If no version is specified, the currently configured shell-specific version is used"'
-      builtin echo 'builtin echo "Options:"'
-      builtin echo 'builtin echo "  -h, --help  Show this help message"'
-      exit 0
+      builtin exec echo "builtin echo '$("${cmdHelp}" "${SCRIPT_NAME##*-}")'"
       ;;
   esac
   if [[ -n "${1:-}" ]]; then
     [[ ! -d "${TEXENV_VERSIONS:-}" ]] && {
-      builtin echo "texenv: no versions installed" >&2
+      builtin echo "builtin echo \"${SCRIPT_NAME%%-*}: no versions installed\""
       exit 1
     }
     INSTALLED_VERSIONS="$(find "${TEXENV_VERSIONS}" -maxdepth 1 ! -name "${TEXENV_VERSIONS##*/}" -type d | awk -F/ '{print $NF}')"
     if ! grep -qxF "${1}" <<< "${INSTALLED_VERSIONS}" 2> /dev/null; then
-      builtin echo "texenv: version '${1}' is not installed" >&2
+      builtin echo "builtin echo \"${SCRIPT_NAME%%-*}: version '${1}' is not installed\""
       exit 1
     else
       builtin echo "export TEXENV_VERSION=\"${1}\""
@@ -34,7 +35,7 @@ cmdShell() {
   elif [[ -n "${TEXENV_VERSION}" ]]; then
     builtin echo "builtin echo \"${TEXENV_VERSION}\""
   else
-    builtin echo 'builtin echo "texenv: no shell-specific version configured"'
+    builtin echo "builtin echo \"${SCRIPT_NAME%%-*}: no shell-specific version configured\""
   fi
 }
 
