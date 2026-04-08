@@ -276,66 +276,15 @@ EOF
 
 main() {
   case "${1:-}" in
-    commands)
-      helpCommands
-      ;;
-    env)
-      helpEnv
-      ;;
-    exec)
-      helpExec
-      ;;
-    freeze)
-      helpFreeze
-      ;;
-    global)
-      helpGlobal
-      ;;
-    init)
-      helpInit
+    commands | env | exec | freeze | global | init | local | rehash | repo | restore | root | shims | uninstall | version | versions | whence | where | which)
+      "help${1^}"
       ;;
     install)
       shift || true
-      helpInstall "${@}"
-      ;;
-    local)
-      helpLocal
-      ;;
-    rehash)
-      helpRehash
-      ;;
-    repo)
-      helpRepo
-      ;;
-    restore)
-      helpRestore
-      ;;
-    root)
-      helpRoot
+      "help${1^}" "${@}"
       ;;
     shell)
-      builtin eval "$(helpShell)"
-      ;;
-    shims)
-      helpShims
-      ;;
-    uninstall)
-      helpUninstall
-      ;;
-    version)
-      helpVersion
-      ;;
-    versions)
-      helpVersions
-      ;;
-    whence)
-      helpWhence
-      ;;
-    where)
-      helpWhere
-      ;;
-    which)
-      helpWhich
+      builtin eval "$("help${1^}")"
       ;;
     *)
       cmdHelp
