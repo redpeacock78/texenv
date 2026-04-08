@@ -277,23 +277,21 @@ EOF
 main() {
   declare FUNC_NAMES
   declare PATTERNS
-  IFS=" " read -r -a FUNC_NAMES <<< "$(declare -F | awk -v 'ORS= ' '/help/{sub("help","");print tolower($3)}')"
+  IFS=" " read -r -a FUNC_NAMES <<< "$(declare -F | awk -v 'ORS= ' '/ help[A-Z][a-z]*$/{sub("help","",$3);print tolower($3)}')"
   PATTERNS="$(
-    IFS='|'
+    IFS="|"
     builtin echo "${FUNC_NAMES[*]}"
   )"
-  if [[ "${1:-}" == @(${PATTERNS}) ]]; then
-    [[ "${1:-}" == "install" ]] && {
-      "help${1^}" "${@:2}"
-      exit 0
-    }
-    [[ "${1:-}" == "shell" ]] && {
-      builtin eval "$("help${1^}")"
-      exit 0
-    }
-    "help${1^}"
-  else
+  if [[ "${1:-}" != @(${PATTERNS}) ]]; then
     cmdHelp
+  else
+    if [[ "${1:-}" == "install" ]]; then
+      "help${1^}" "${@:2}"
+    elif [[ "${1:-}" == "shell" ]]; then
+      builtin eval "$("help${1^}")"
+    else
+      "help${1^}"
+    fi
   fi
 }
 
