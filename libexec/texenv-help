@@ -275,21 +275,26 @@ EOF
 }
 
 main() {
-  case "${1:-}" in
-    commands | env | exec | freeze | global | init | local | rehash | repo | restore | root | shims | uninstall | version | versions | whence | where | which)
-      "help${1^}"
-      ;;
-    install)
-      shift || true
-      "help${1^}" "${@}"
-      ;;
-    shell)
+  declare FUNC_NAMES
+  declare PATTERNS
+  IFS=" " read -r -a FUNC_NAMES <<< "$(declare -F | awk -v 'ORS= ' '/help/{sub("help","");print tolower($3)}')"
+  PATTERNS="$(
+    IFS='|'
+    builtin echo "${FUNC_NAMES[*]}"
+  )"
+  if [[ "${1:-}" == @(${PATTERNS}) ]]; then
+    [[ "${1:-}" == "install" ]] && {
+      "help${1^}" "${@:2}"
+      exit 0
+    }
+    [[ "${1:-}" == "shell" ]] && {
       builtin eval "$("help${1^}")"
-      ;;
-    *)
-      cmdHelp
-      ;;
-  esac
+      exit 0
+    }
+    "help${1^}"
+  else
+    cmdHelp
+  fi
 }
 
 main "${@}"
