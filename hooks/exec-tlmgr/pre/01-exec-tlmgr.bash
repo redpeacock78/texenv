@@ -8,9 +8,6 @@ main() {
   case "${2:-}" in
     install | uninstall | remove | update | info | search)
       texenv repo > /dev/null
-      type mktexlsr > /dev/null && {
-        mktexlsr > /dev/null 2>&1 || true
-      }
       ;;
   esac
 }
