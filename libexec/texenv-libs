@@ -71,6 +71,7 @@ executeRun() {
   fi
 }
 
+# Run hooks for specific event and phase
 runHooks() {
   declare EVENT
   declare PHASE
