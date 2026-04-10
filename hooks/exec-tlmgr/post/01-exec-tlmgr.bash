@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+declare -r TEXENV_DEBUG
+[[ "${TEXENV_DEBUG}" == 1 ]] && set -x
+set -euo pipefail
+
+main() {
+	case "${2:-}" in
+	install | update | uninstall | remove)
+		texenv rehash >/dev/null
+		;;
+	esac
+}
+
+main "${@}"
