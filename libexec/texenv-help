@@ -143,9 +143,9 @@ helpRepo() {
   declare SUBCMD_USAGE
   SCRIPT_NAME="${0##*/}"
   SUBCMD_NAME="${FUNCNAME[0]##help}"
-  SUBCMD_USAGE="${SUBCMD_NAME,,} [options] <repo>"
+  SUBCMD_USAGE="${SUBCMD_NAME,,} [options] [<repo>]"
   [[ "${1:-}" != "desc" ]] && builtin echo "Usage: ${SCRIPT_NAME%%-*} ${SUBCMD_USAGE}"
-  builtin echo "$([[ "${1:-}" == "desc" ]] && builtin echo "${SUBCMD_USAGE}         ")Manage tlmgr repository"
+  builtin echo "$([[ "${1:-}" == "desc" ]] && builtin echo "${SUBCMD_USAGE}       ")Manage tlmgr repository"
   [[ "${1:-}" != "desc" ]] && builtin echo "Options:"
   [[ "${1:-}" != "desc" ]] && builtin echo "  -s, --show           Show current tlmgr repository"
   [[ "${1:-}" != "desc" ]] && builtin echo "  -m, --mirror <repo>  Set tlmgr repository to specified mirror"
