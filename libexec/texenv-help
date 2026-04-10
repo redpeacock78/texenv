@@ -295,20 +295,22 @@ cmdHelp() {
     else
       builtin echo "  $("${FUNC_NAME}" desc)"
     fi
-  done < <(declare -F | awk '/ help[A-Z][a-z]*$/{print $3}')
+  done <<< "${@}"
   builtin echo "  help                          Show this help message"
 }
 
 main() {
-  declare FUNC_NAMES
+  declare HELP_FUNCS
+  declare SUBCMD_NAMES
   declare PATTERNS
-  IFS=" " read -r -a FUNC_NAMES <<< "$(declare -F | awk -v 'ORS= ' '/ help[A-Z][a-z]*$/{sub("help","",$3);print tolower($3)}')"
+  HELP_FUNCS="$(declare -F | awk '/ help[A-Z][a-z]*$/{print $3}')"
+  IFS=" " read -r -a SUBCMD_NAMES <<< "$(awk -v 'ORS= ' '{sub("help","");print tolower($0)}' <<< "${HELP_FUNCS}")"
   PATTERNS="$(
     IFS="|"
-    builtin echo "${FUNC_NAMES[*]}"
+    builtin echo "${SUBCMD_NAMES[*]}"
   )"
   if [[ "${1:-}" != @(${PATTERNS}) ]]; then
-    cmdHelp
+    cmdHelp "${HELP_FUNCS}"
   else
     if [[ "${1:-}" == "install" ]]; then
       "help${1^}" "${@:2}"
