@@ -71,6 +71,21 @@ executeRun() {
   fi
 }
 
+runHooks() {
+  declare EVENT
+  declare PHASE
+  declare ARG
+  declare HOOK_DIR
+  EVENT="${1:-}"
+  PHASE="${2:-}"
+  ARG="${*:3}"
+  HOOK_DIR="${TEXENV_HOOKS}/${EVENT}/${PHASE}"
+  [[ -d "${HOOK_DIR}" ]] || return 0
+  while read -r HOOK_SCRIPT; do
+    [[ -x "${HOOK_SCRIPT}" ]] && "${HOOK_SCRIPT}" ${ARG:-}
+  done < <(find "${HOOK_DIR}" -maxdepth 1 -type f -name "*.bash" | sort)
+}
+
 main() {
   case "${1:-}" in
     resolveVersion)
@@ -79,6 +94,10 @@ main() {
     executeRun)
       shift || true
       executeRun "${@}"
+      ;;
+    runHooks)
+      shift || true
+      runHooks "${@}"
       ;;
   esac
 }
