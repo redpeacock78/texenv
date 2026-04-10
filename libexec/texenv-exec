@@ -8,16 +8,16 @@ set -euo pipefail
 cmdExec() {
   declare cmdHelp
   declare libs
-  declare executeRun
   declare runHooks
+  declare executeRun
   declare SCRIPT_NAME
   declare SUBCMD_NAME
   SCRIPT_NAME="${0##*/}"
   SUBCMD_NAME="${SCRIPT_NAME##*-}"
   libs="$(builtin type -P "texenv-libs" || true)"
   cmdHelp="$(builtin type -P "texenv-help" || true)"
-  executeRun="${libs} executeRun"
   runHooks="${libs} runHooks"
+  executeRun="${libs} executeRun"
   [[ -z "${libs}" || -z "${cmdHelp}" ]] && {
     builtin echo "${SCRIPT_NAME%%-*}: required component(s) missing" >&2
     exit 1
