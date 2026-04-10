@@ -7,45 +7,31 @@ set -euo pipefail
 # Execute command in current TeX Live version
 cmdExec() {
   declare cmdHelp
-  declare cmdRepo
-  declare cmdRehash
   declare libs
   declare executeRun
+  declare runHooks
   declare SCRIPT_NAME
+  declare SUBCMD_NAME
   SCRIPT_NAME="${0##*/}"
+  SUBCMD_NAME="${SCRIPT_NAME##*-}"
   libs="$(builtin type -P "texenv-libs" || true)"
   cmdHelp="$(builtin type -P "texenv-help" || true)"
-  cmdRepo="$(builtin type -P "texenv-repo" || true)"
-  cmdRehash="$(builtin type -P "texenv-rehash" || true)"
   executeRun="${libs} executeRun"
-  [[ -z "${libs}" || -z "${cmdHelp}" || -z "${cmdRepo}" || -z "${cmdRehash}" ]] && {
+  runHooks="${libs} runHooks"
+  [[ -z "${libs}" || -z "${cmdHelp}" ]] && {
     builtin echo "${SCRIPT_NAME%%-*}: required component(s) missing" >&2
     exit 1
   }
   case "${1:-}" in
     -h | --help)
-      builtin exec "${cmdHelp}" "${SCRIPT_NAME##*-}"
+      builtin exec "${cmdHelp}" "${SUBCMD_NAME}"
       ;;
   esac
-  {
-    if [[ "${1:-}" == "tlmgr" ]]; then
-      case "${2:-}" in
-        install | update | info | search)
-          "${cmdRepo}" > /dev/null
-          ;;
-      esac
-    fi
-  } && {
-    ${executeRun} "${@}"
-  } && {
-    if [[ "${1:-}" == "tlmgr" ]]; then
-      case "${2:-}" in
-        install | update | uninstall | remove)
-          "${cmdRehash}" > /dev/null
-          ;;
-      esac
-    fi
-  }
+  ${runHooks} "${SUBCMD_NAME}" pre "${@}"
+  ${runHooks} "${SUBCMD_NAME}-${1:-}" pre "${@}"
+  ${executeRun} "${@}"
+  ${runHooks} "${SUBCMD_NAME}" post "${@}"
+  ${runHooks} "${SUBCMD_NAME}-${1:-}" post "${@}"
 }
 
 cmdExec "${@}"
