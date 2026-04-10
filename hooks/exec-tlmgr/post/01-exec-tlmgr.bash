@@ -5,11 +5,11 @@ declare -r TEXENV_DEBUG
 set -euo pipefail
 
 main() {
-	case "${2:-}" in
-	install | update | uninstall | remove)
-		texenv rehash >/dev/null
-		;;
-	esac
+  case "${2:-}" in
+    install | update | uninstall | remove)
+      texenv rehash > /dev/null
+      ;;
+  esac
 }
 
 main "${@}"
