@@ -68,6 +68,7 @@ declare -r TEXENV_VERSIONS="${TEXENV_ROOT}/versions"
 declare -r TEXENV_CONFIG="${TEXENV_ROOT}/config"
 declare -r TEXENV_BIN="${TEXENV_ROOT}/bin"
 declare -r TEXENV_SHIMS="${TEXENV_ROOT}/shims"
+declare -r TEXENV_HOOKS="${TEXENV_ROOT}/hooks"
 declare -r TEXMF_HOME="${TEXMF_HOME:-"${TEXENV_ROOT}/texmf"}"
 declare -r TEX_GLOBAL_VERSION_FILE="version"
 declare -r TEX_LOCAL_VERSION_FILE=".tex-version"
@@ -84,6 +85,7 @@ export TEXENV_VERSIONS
 export TEXENV_CONFIG
 export TEXENV_BIN
 export TEXENV_SHIMS
+export TEXENV_HOOKS
 export TEXMF_HOME
 export TEX_GLOBAL_VERSION_FILE
 export TEX_LOCAL_VERSION_FILE
