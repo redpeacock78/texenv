@@ -5,7 +5,7 @@ declare -r TEXENV_DEBUG
 set -euo pipefail
 
 main() {
-  declare ARGS
+  declare -a ARGS
   case "${2:-}" in
     install | update | uninstall | remove | restore)
       ARGS=("${@:3}")
