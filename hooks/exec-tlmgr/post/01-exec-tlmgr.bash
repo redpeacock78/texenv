@@ -7,7 +7,7 @@ set -euo pipefail
 main() {
   declare ARGS
   case "${2:-}" in
-    install | update | uninstall | remove)
+    install | update | uninstall | remove | restore)
       ARGS=("${@:3}")
       for ARG in "${ARGS[@]}"; do
         [[ "${ARG}" == @(-h|--help|--dry-run|--list) ]] && return 0
