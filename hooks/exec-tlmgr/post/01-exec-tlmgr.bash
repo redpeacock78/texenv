@@ -7,10 +7,8 @@ set -euo pipefail
 main() {
   case "${2:-}" in
     install | update | uninstall | remove)
-      texenv rehash > /dev/null
-      type mktexlsr > /dev/null 2>&1 && {
-        mktexlsr > /dev/null 2>&1 || true
-      }
+      "${TEXENV_BIN}/texenv" rehash
+      "${TEXENV_BIN}/texenv" exec mktexlsr --verbose
       ;;
   esac
 }
