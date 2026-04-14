@@ -5,12 +5,15 @@ declare -r TEXENV_DEBUG
 set -euo pipefail
 
 main() {
+  declare ARGS
   case "${2:-}" in
     install | update | uninstall | remove)
-      if [[ ! "${*:3}" =~ (--dry-run|--list) ]]; then
-        "${TEXENV_BIN}/texenv" rehash
-        "${TEXENV_BIN}/texenv" exec mktexlsr --verbose
-      fi
+      ARGS=("${@:3}")
+      for ARG in "${ARGS[@]}"; do
+        [[ "${ARG}" == @(-h|--help|--dry-run|--list) ]] && return 0
+      done
+      "${TEXENV_BIN}/texenv" rehash
+      "${TEXENV_BIN}/texenv" exec mktexlsr --verbose
       ;;
   esac
 }
