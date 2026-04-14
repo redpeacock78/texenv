@@ -7,8 +7,10 @@ set -euo pipefail
 main() {
   case "${2:-}" in
     install | update | uninstall | remove)
-      "${TEXENV_BIN}/texenv" rehash
-      "${TEXENV_BIN}/texenv" exec mktexlsr --verbose
+      if [[ ! "${*:3}" =~ (--dry-run|--list) ]]; then
+        "${TEXENV_BIN}/texenv" rehash
+        "${TEXENV_BIN}/texenv" exec mktexlsr --verbose
+      fi
       ;;
   esac
 }
