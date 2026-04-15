@@ -16,17 +16,19 @@ cmdInstall() {
   declare FORCE_INSTALL
   declare INSTALL_STATUS
   declare SCRIPT_NAME
+  declare CMD_NAME
   declare SUBCMD_NAME
   declare libs
   declare cmdHelp
   SCRIPT_NAME="${0##*/}"
+  CMD_NAME="${SCRIPT_NAME%%-*}"
   SUBCMD_NAME="${SCRIPT_NAME##*-}"
   TEX_URL_PERFIX="https://github.com/rstudio/tinytex-releases/releases/download"
-  libs="$(builtin type -P "texenv-libs" || true)"
-  cmdHelp="$(builtin type -P "texenv-help" || true)"
+  libs="$(builtin type -P "${CMD_NAME}-libs" || true)"
+  cmdHelp="$(builtin type -P "${CMD_NAME}-help" || true)"
   runHooks="${libs} runHooks"
   [[ -z "${libs}" || -z "${cmdHelp}" ]] && {
-    builtin echo "${SCRIPT_NAME%%-*}: required component(s) missing" >&2
+    builtin echo "${CMD_NAME}: required component(s) missing" >&2
     exit 1
   }
   versionList() {
@@ -65,21 +67,21 @@ cmdInstall() {
       ;;
   esac
   [[ -d "${TEXENV_ROOT}" && -d "${TEXENV_VERSIONS}" && -d "${TEXENV_CONFIG}" && -d "${TEXENV_SHIMS}" ]] || {
-    builtin echo "${SCRIPT_NAME%%-*}: run '${SCRIPT_NAME%%-*} init' first" >&2
+    builtin echo "${CMD_NAME}: run '${CMD_NAME} init' first" >&2
     exit 1
   }
   [[ -z "${VERSION}" ]] && {
-    builtin echo "${SCRIPT_NAME%%-*}: ${SUBCMD_NAME} [options] <version>" >&2
+    builtin echo "${CMD_NAME}: ${SUBCMD_NAME} [options] <version>" >&2
     exit 1
   }
   TEX_DIR="${TEXENV_VERSIONS}/${VERSION/daily/daily-$(date +%Y.%m.%d)}"
   [[ -d "${TEX_DIR}" && "${FORCE_INSTALL:-0}" != 1 ]] && {
-    builtin echo "${SCRIPT_NAME%%-*}: version ${VERSION} is already installed" >&2
+    builtin echo "${CMD_NAME}: version ${VERSION} is already installed" >&2
     exit 1
   }
   VERSION_LIST="$(versionList)"
   grep -qxF "${VERSION}" <<< "${VERSION_LIST}" || {
-    builtin echo "${SCRIPT_NAME%%-*}: version '${VERSION}' is not available" >&2
+    builtin echo "${CMD_NAME}: version '${VERSION}' is not available" >&2
     exit 1
   }
   if [[ "${VERSION}" == "daily" ]]; then
@@ -114,7 +116,7 @@ cmdInstall() {
     [[ -n "${TEX_TMP:-}" && -f "${TEX_TMP}" ]] && rm -rf "${TEX_TMP:?}"
     [[ "${INSTALL_STATUS:-0}" != 1 ]] && {
       [[ -n "${TEX_DIR:-}" && -d "${TEX_DIR}" ]] && rm -rf "${TEX_DIR:?}"
-      builtin echo "${SCRIPT_NAME%%-*}: failed to install version ${VERSION}" >&2
+      builtin echo "${CMD_NAME}: failed to install version ${VERSION}" >&2
     }
   }
   trap cleanup EXIT INT TERM
