@@ -25,6 +25,7 @@ A lightweight version manager for TinyTeX (minimal TeX Live) inspired by rbenv. 
 - Operating systems:
   - macOS (Darwin): platform "universal-darwin", archives ".tgz"
   - Linux x86_64: platform "x86_64-linux", archives ".tar.gz"
+  - Linux ARM64 (aarch64 / arm64): platform "aarch64-linux", archives ".tar.gz"
   - Others are not supported (texenv exits with "unsupported OS").
 - Shell:
   - Bash >= 4.x
@@ -70,11 +71,13 @@ Add texenv initialization lines to your shell profile (~/.bashrc, ~/.zshrc, etc.
 eval "$(~/.texenv/bin/texenv init -)"
 ```
 
-Open a new shell (or source your profile) then run:
+The `init -` snippet prepends `~/.texenv/bin` and `~/.texenv/shims` to `PATH`, sets
+`TEXENV_SHELL` to the current shell name, defines a `texenv()` shell function that
+handles special subcommands (e.g. `shell`), and automatically runs `texenv init` on
+each new shell session.
 
-```bash
-texenv init
-```
+Open a new shell (or source your profile). The first `texenv init` call will create
+all required directories automatically. You can also run it explicitly:
 
 ### Directory Structure
 
@@ -98,21 +101,21 @@ Matches `texenv help`:
 
 - commands            List available commands
 - init                Initialize texenv environment
-- install [version]   Install specified TinyTeX version
-- uninstall [version] Uninstall specified TinyTeX version
-- version             Show current TinyTeX version
-- versions            List installed TinyTeX versions
-- shell [version]     Spawn a new shell with specified TinyTeX version
-- global [version]    Set global TinyTeX version
-- local [version]     Set local TinyTeX version
+- install [version]   Install specified TeX Live version
+- uninstall [version] Uninstall specified TeX Live version
+- version             Show current TeX Live version
+- versions            List installed TeX Live versions
+- shell [version]     Spawn a new shell with specified TeX Live version
+- global [version]    Set global TeX Live version
+- local [version]     Set local TeX Live version
 - repo [options]      Manage tlmgr repository
-- exec [cmd] [args]   Execute command in current TinyTeX version
-- rehash              Rebuild shims for installed TinyTeX versions
+- exec [cmd] [args]   Execute command in current TeX Live version
+- rehash              Rebuild shims for installed TeX Live versions
 - freeze [options]    Freeze installed TeX packages to requirements file
 - restore             Restore TeX packages from requirements file
 - which [cmd]         Show path to shim for specified command
-- where [cmd]         Show path to command in current TinyTeX version
-- whence [cmd]        Show path to command in all installed TinyTeX versions
+- where [cmd]         Show path to command in current TeX Live version
+- whence [cmd]        Show path to command in all installed TeX Live versions
 - env                 Display texenv environment information
 - root                Show texenv root directory
 - shims               Show executable file(s) from texenv shims directory
@@ -147,6 +150,12 @@ Install / refresh the daily build:
 ```bash
 texenv install daily
 ```
+
+The daily build is stored as `daily-YYYY.MM.DD` under `~/.texenv/versions/`.
+texenv first attempts to fetch the standard archive (`.tgz` on macOS, `.tar.gz` on
+Linux). If that URL returns a non-200 status, it falls back to the `.tar.xz` variant:
+- macOS: `TinyTeX-1-darwin.tar.xz`
+- Linux: `TinyTeX-1-linux-{arch}.tar.xz`
 
 Force reinstall an already installed version:
 
@@ -312,11 +321,14 @@ texenv uninstall 2024.09
 
 ## Environment variables
 
-- TEXENV_ROOT (default: $HOME/.texenv)
-- TEXENV_DIR (defaults to current working directory, used for local version resolution)
-- TEXENV_PLATFORM (detected: universal-darwin or x86_64-linux)
-- TEXENV_DEBUG=1 enables shell tracing
-- TEXMFHOME overridden to texenv’s managed texmf directory
+- `TEXENV_ROOT` (default: `$HOME/.texenv`) — installation root
+- `TEXENV_DIR` (default: current working directory) — used for local `.tex-version` lookup
+- `TEXENV_VERSION` — override active version for the current shell session
+- `TEXENV_PLATFORM` (detected: `universal-darwin`, `x86_64-linux`, or `aarch64-linux`)
+- `TEXENV_BIN` — path to `$TEXENV_ROOT/bin`; prepended to `PATH` by `init -`
+- `TEXENV_SHELL` — set to the current shell name (`${SHELL##*/}`) by `init -`
+- `TEXENV_DEBUG=1` — enables shell tracing (`set -x`)
+- `TEXMFHOME` — overridden to `$TEXENV_ROOT/texmf` (user TeX macro folder)
 
 ## Removing texenv
 
