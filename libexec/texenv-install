@@ -46,7 +46,7 @@ cmdInstall() {
           exit 0
           ;;
         -h | --help)
-          builtin exec "${cmdHelp}" "${SCRIPT_NAME##*-}" "${@}"
+          builtin exec "${cmdHelp}" "${SUBCMD_NAME}" "${@}"
           ;;
       esac
       versionList
@@ -58,7 +58,7 @@ cmdInstall() {
       VERSION="${1:-}"
       ;;
     -h | --help)
-      builtin exec "${cmdHelp}" "${SCRIPT_NAME##*-}"
+      builtin exec "${cmdHelp}" "${SUBCMD_NAME}"
       ;;
     *)
       VERSION="${1:-}"
@@ -69,7 +69,7 @@ cmdInstall() {
     exit 1
   }
   [[ -z "${VERSION}" ]] && {
-    builtin echo "${SCRIPT_NAME%%-*}: ${SCRIPT_NAME##*-} [options] <version>" >&2
+    builtin echo "${SCRIPT_NAME%%-*}: ${SUBCMD_NAME} [options] <version>" >&2
     exit 1
   }
   TEX_DIR="${TEXENV_VERSIONS}/${VERSION/daily/daily-$(date +%Y.%m.%d)}"
