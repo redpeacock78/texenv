@@ -8,6 +8,7 @@ set -euo pipefail
 cmdInstall() {
   declare TEX_DIR
   declare TEX_URL
+  declare TEX_URL_PERFIX
   declare TEX_TMP
   declare TINYTEX_ARCHIVE_NAME
   declare VERSION
@@ -20,6 +21,7 @@ cmdInstall() {
   declare cmdHelp
   SCRIPT_NAME="${0##*/}"
   SUBCMD_NAME="${SCRIPT_NAME##*-}"
+  TEX_URL_PERFIX="https://github.com/rstudio/tinytex-releases/releases/download"
   libs="$(builtin type -P "texenv-libs" || true)"
   cmdHelp="$(builtin type -P "texenv-help" || true)"
   runHooks="${libs} runHooks"
@@ -82,7 +84,7 @@ cmdInstall() {
   }
   if [[ "${VERSION}" == "daily" ]]; then
     TINYTEX_ARCHIVE_NAME="TinyTeX-1.${TINYTEX_ARCHIVE_EXT}"
-    TEX_URL="https://github.com/rstudio/tinytex-releases/releases/download/daily/${TINYTEX_ARCHIVE_NAME}"
+    TEX_URL="${TEX_URL_PERFIX}/daily/${TINYTEX_ARCHIVE_NAME}"
     URL_STATUS="$(curl -sSIL "${TEX_URL}" -o /dev/null -w "%{http_code}")"
     [[ "${URL_STATUS}" != "200" ]] && {
       TINYTEX_ARCHIVE_EXT="tar.xz"
@@ -91,11 +93,11 @@ cmdInstall() {
       else
         TINYTEX_ARCHIVE_NAME="TinyTeX-1-${OS_NAME,,}-${ARCH,,}.${TINYTEX_ARCHIVE_EXT}"
       fi
-      TEX_URL="https://github.com/rstudio/tinytex-releases/releases/download/daily/${TINYTEX_ARCHIVE_NAME}"
+      TEX_URL="${TEX_URL_PERFIX}/daily/${TINYTEX_ARCHIVE_NAME}"
     }
   else
     TINYTEX_ARCHIVE_NAME="TinyTeX-1-v${VERSION}.${TINYTEX_ARCHIVE_EXT}"
-    TEX_URL="https://github.com/rstudio/tinytex-releases/releases/download/v${VERSION}/${TINYTEX_ARCHIVE_NAME}"
+    TEX_URL="${TEX_URL_PERFIX}/v${VERSION}/${TINYTEX_ARCHIVE_NAME}"
     URL_STATUS="$(curl -sSIL "${TEX_URL}" -o /dev/null -w "%{http_code}")"
     [[ "${URL_STATUS}" != "200" ]] && {
       TINYTEX_ARCHIVE_EXT="tar.xz"
@@ -104,7 +106,7 @@ cmdInstall() {
       else
         TINYTEX_ARCHIVE_NAME="TinyTeX-1-${OS_NAME,,}-${ARCH,,}-v${VERSION}.${TINYTEX_ARCHIVE_EXT}"
       fi
-      TEX_URL="https://github.com/rstudio/tinytex-releases/releases/download/v${VERSION}/${TINYTEX_ARCHIVE_NAME}"
+      TEX_URL="${TEX_URL_PERFIX}/v${VERSION}/${TINYTEX_ARCHIVE_NAME}"
     }
   fi
   TEX_TMP="$(mktemp "/tmp/TinyTeX.XXXXXX.${TINYTEX_ARCHIVE_EXT}")"
