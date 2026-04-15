@@ -10,7 +10,7 @@ main() {
     install | uninstall | remove | update | info | search)
       ARGS=("${@:3}")
       for ARG in "${ARGS[@]}"; do
-        [[ "${ARG}" == @(-h|--help) ]] && return 0
+        [[ "${ARG}" == @(-h|--help|--version) ]] && return 0
       done
       "${TEXENV_BIN}/texenv" repo
       ;;
