@@ -29,14 +29,15 @@ declare -r TEXENV_DEBUG
 [[ "${TEXENV_DEBUG}" == 1 ]] && set -x
 set -euo pipefail
 
-declare PERL_PATH
+declare -r SCRIPT_NAME="${0##*/}"
 PERL_PATH="$(builtin type -P perl || true)"
+declare -r PERL_PATH
 if [[ -z "${PERL_PATH}" ]]; then
-  builtin echo "texenv: perl is required" >&2
+  builtin echo "${SCRIPT_NAME}: perl is required" >&2
   exit 1
 else
   "${PERL_PATH}" -mFile::Find /dev/null || {
-    builtin echo "texenv: perl is required but not found (https://github.com/rstudio/tinytex/issues/419)" >&2
+    builtin echo "${SCRIPT_NAME}: perl is required but not found (https://github.com/rstudio/tinytex/issues/419)" >&2
     exit 1
   }
 fi
@@ -54,12 +55,12 @@ elif [[ "${OS_NAME}" == "Linux" ]]; then
   elif [[ "${ARCH}" == @(aarch64|arm64) ]]; then
     declare -r TEXENV_PLATFORM="aarch64-linux"
   else
-    builtin echo "texenv: unsupported architecture '${ARCH}' on ${OS_NAME}" >&2
+    builtin echo "${SCRIPT_NAME}: unsupported architecture '${ARCH}' on ${OS_NAME}" >&2
     exit 1
   fi
   declare -r TINYTEX_ARCHIVE_EXT="tar.gz"
 else
-  builtin echo "texenv: unsupported OS '${ARCH}-${OS_NAME}'" >&2
+  builtin echo "${SCRIPT_NAME}: unsupported OS '${ARCH}-${OS_NAME}'" >&2
   exit 1
 fi
 
@@ -130,12 +131,12 @@ main() {
   declare CMD_NAME
   declare CMD_PATH
   CMD_NAME="${1:-}"
-  CMD_PATH="$(builtin type -P "texenv-${CMD_NAME}" || true)"
+  CMD_PATH="$(builtin type -P "${SCRIPT_NAME}-${CMD_NAME}" || true)"
   [[ -z "${CMD_PATH}" ]] && {
     [[ -n "${CMD_NAME}" ]] && {
-      builtin echo "texenv: unknown command '${CMD_NAME}'" >&2
+      builtin echo "${SCRIPT_NAME}: unknown command '${CMD_NAME}'" >&2
     }
-    builtin echo "Run '${0##*/} help' for usage." >&2
+    builtin echo "Run '${SCRIPT_NAME} help' for usage." >&2
     exit 1
   }
   shift || true
