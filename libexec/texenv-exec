@@ -11,15 +11,17 @@ cmdExec() {
   declare runHooks
   declare executeRun
   declare SCRIPT_NAME
+  declare CMD_NAME
   declare SUBCMD_NAME
   SCRIPT_NAME="${0##*/}"
+  CMD_NAME="${SCRIPT_NAME%%-*}"
   SUBCMD_NAME="${SCRIPT_NAME##*-}"
-  libs="$(builtin type -P "texenv-libs" || true)"
-  cmdHelp="$(builtin type -P "texenv-help" || true)"
+  libs="$(builtin type -P "${CMD_NAME}-libs" || true)"
+  cmdHelp="$(builtin type -P "${CMD_NAME}-help" || true)"
   runHooks="${libs} runHooks"
   executeRun="${libs} executeRun"
   [[ -z "${libs}" || -z "${cmdHelp}" ]] && {
-    builtin echo "${SCRIPT_NAME%%-*}: required component(s) missing" >&2
+    builtin echo "${CMD_NAME}: required component(s) missing" >&2
     exit 1
   }
   case "${1:-}" in
