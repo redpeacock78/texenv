@@ -24,7 +24,7 @@ cmdUninstall() {
   }
   case "${1:-}" in
     -h | --help)
-      builtin exec "${cmdHelp}" "${SCRIPT_NAME##*-}"
+      builtin exec "${cmdHelp}" "${SUBCMD_NAME}"
       ;;
     *)
       VERSION="${1:-}"
@@ -35,7 +35,7 @@ cmdUninstall() {
     exit 1
   }
   [[ -z "${VERSION}" ]] && {
-    builtin echo "USAGE: ${SCRIPT_NAME%%-*} uninstall <version>" >&2
+    builtin echo "USAGE: ${SCRIPT_NAME%%-*} ${SUBCMD_NAME} <version>" >&2
     exit 1
   }
   [[ -d "${TEXENV_VERSIONS}/${VERSION}" ]] || {
