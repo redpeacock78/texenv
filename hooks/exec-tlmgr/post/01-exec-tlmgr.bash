@@ -10,7 +10,7 @@ main() {
     install | update | uninstall | remove | restore)
       ARGS=("${@:3}")
       for ARG in "${ARGS[@]}"; do
-        [[ "${ARG}" == @(-h|--help|--dry-run|--list|--json) ]] && return 0
+        [[ "${ARG}" == @(-h|--help|--version|--dry-run|--list|--json) ]] && return 0
       done
       "${TEXENV_BIN}/texenv" rehash
       "${TEXENV_BIN}/texenv" exec mktexlsr --verbose
