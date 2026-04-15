@@ -8,18 +8,20 @@ set -euo pipefail
 cmdUninstall() {
   declare VERSION
   declare SCRIPT_NAME
+  declare CMD_NAME
   declare SUBCMD_NAME
   declare CONFIG_DIR
   declare libs
   declare cmdHelp
   declare runHooks
   SCRIPT_NAME="${0##*/}"
+  CMD_NAME="${SCRIPT_NAME%%-*}"
   SUBCMD_NAME="${SCRIPT_NAME##*-}"
-  libs="$(builtin type -P "texenv-libs" || true)"
-  cmdHelp="$(builtin type -P "texenv-help" || true)"
+  libs="$(builtin type -P "${CMD_NAME}-libs" || true)"
+  cmdHelp="$(builtin type -P "${CMD_NAME}-help" || true)"
   runHooks="${libs} runHooks"
   [[ -z "${libs}" || -z "${cmdHelp}" ]] && {
-    builtin echo "${SCRIPT_NAME%%-*}: required component(s) missing" >&2
+    builtin echo "${CMD_NAME}: required component(s) missing" >&2
     exit 1
   }
   case "${1:-}" in
@@ -31,15 +33,15 @@ cmdUninstall() {
       ;;
   esac
   [[ -d "${TEXENV_ROOT}" && -d "${TEXENV_VERSIONS}" && -d "${TEXENV_CONFIG}" && -d "${TEXENV_SHIMS}" ]] || {
-    builtin echo "${SCRIPT_NAME%%-*}: run '${SCRIPT_NAME%%-*} init' first," >&2
+    builtin echo "${CMD_NAME}: run '${CMD_NAME} init' first," >&2
     exit 1
   }
   [[ -z "${VERSION}" ]] && {
-    builtin echo "USAGE: ${SCRIPT_NAME%%-*} ${SUBCMD_NAME} <version>" >&2
+    builtin echo "USAGE: ${CMD_NAME} ${SUBCMD_NAME} <version>" >&2
     exit 1
   }
   [[ -d "${TEXENV_VERSIONS}/${VERSION}" ]] || {
-    builtin echo "${SCRIPT_NAME%%-*}: version ${VERSION} is not installed" >&2
+    builtin echo "${CMD_NAME}: version ${VERSION} is not installed" >&2
     exit 1
   }
   {
@@ -50,7 +52,7 @@ cmdUninstall() {
     ${runHooks} "${SUBCMD_NAME}" post "${@}"
     builtin echo "TeX Live version ${VERSION} uninstalled successfully."
   } || {
-    builtin echo "${SCRIPT_NAME%%-*}: failed to uninstall version ${VERSION}" >&2
+    builtin echo "${CMD_NAME}: failed to uninstall version ${VERSION}" >&2
     exit 1
   }
 }
