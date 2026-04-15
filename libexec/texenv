@@ -51,6 +51,8 @@ if [[ "${OS_NAME}" == "Darwin" ]]; then
 elif [[ "${OS_NAME}" == "Linux" ]]; then
   if [[ "${ARCH}" == "x86_64" ]]; then
     declare -r TEXENV_PLATFORM="x86_64-linux"
+  elif [[ "${ARCH}" == "aarch64" || "${ARCH}" == "arm64" ]]; then
+    declare -r TEXENV_PLATFORM="aarch64-linux"
   else
     builtin echo "texenv: unsupported architecture '${ARCH}' on ${OS_NAME}" >&2
     exit 1
@@ -76,6 +78,8 @@ declare -r TEX_REQUIREMENTS_FILE="tex-require.txt"
 declare -r TEX_REQUIREMENTS_LOCK_FILE="tex-require.lock"
 declare -r TEX_CMD_LIST_CACHE="${TEXENV_CONFIG}/cmd_list_cache.txt"
 
+export OS_NAME
+export ARCH
 export TEXENV_VERSION
 export TEXENV_DIR
 export TEXENV_PLATFORM
