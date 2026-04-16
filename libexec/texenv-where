@@ -9,7 +9,7 @@ cmdWhere() {
   declare CMD_NAME
   declare CMD_PATH
   declare VERSION
-  declare TEX_VERSION_INFO
+  declare -A TEX_VERSION_INFO
   declare SCRIPT_NAME
   declare libs
   declare cmdHelp
@@ -30,8 +30,10 @@ cmdWhere() {
     builtin echo "${SCRIPT_NAME%%-*}: no command specified" >&2
     exit 1
   }
-  TEX_VERSION_INFO="$("${libs}" resolveVersion || true)"
-  VERSION="$(awk -F": " '/TinyTeX-Version: /{print $2}' <<< "${TEX_VERSION_INFO}")"
+  while IFS=': ' read -r KEY VALUE; do
+    [[ -n "${KEY}" && -n "${VALUE}" ]] && TEX_VERSION_INFO["${KEY}"]="${VALUE}"
+  done < <("${libs}" resolveVersion || true)
+  VERSION="${TEX_VERSION_INFO["TinyTeX-Version"]:-}"
   [[ -z "${VERSION}" ]] && {
     builtin echo "${SCRIPT_NAME%%-*}: no version set (use '${SCRIPT_NAME%%-*} global <version>' or '${SCRIPT_NAME%%-*} local <version>')" >&2
     exit 1
