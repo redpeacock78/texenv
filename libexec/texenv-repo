@@ -22,6 +22,7 @@ cmdRepo() {
   declare UNIQUE_REPO
   declare MIRROR_FILE
   declare SCRIPT_NAME
+  declare -A TEX_VERSION_INFO
   declare regex
   SCRIPT_NAME="${0##*/}"
   libs="$(builtin type -P "texenv-libs" || true)"
@@ -49,8 +50,10 @@ cmdRepo() {
       builtin exec "${cmdHelp}" "${SCRIPT_NAME##*-}"
       ;;
   esac
-  TEX_VERSION_INFO="$(${resolveVersion} || true)"
-  VERSION="$(awk -F": " '/TinyTeX-Version: /{print $2}' <<< "${TEX_VERSION_INFO}")"
+  while IFS=': ' read -r KEY VALUE; do
+    [[ -n "${KEY}" && -n "${VALUE}" ]] && TEX_VERSION_INFO["${KEY}"]="${VALUE}"
+  done < <(${resolveVersion} || true)
+  VERSION="${TEX_VERSION_INFO["TinyTeX-Version"]:-}"
   [[ -z "${VERSION}" ]] && {
     builtin echo "${SCRIPT_NAME%%-*}: no version set (use '${SCRIPT_NAME%%-*} global <version>' or '${SCRIPT_NAME%%-*} local <version>')" >&2
     exit 1
@@ -116,7 +119,7 @@ cmdRepo() {
       }
     else
       REPO="https://ftp.math.utah.edu/pub/tex/historic/systems/texlive/${VERSION_YEAR}/tlnet-final"
-      REPO_STATUS="$(curl -sSIL "${REPO}" -o /dev/null -w "%{http_code}")"
+      REPO_STATUS="$(curl -sSIL "${REPO}" -o /dev/null -w "%{http_code}" || true)"
       [[ "${REPO_STATUS}" != "200" ]] && {
         REPO="${DEFAULT_REPO}"
       }
