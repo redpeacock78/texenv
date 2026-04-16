@@ -38,35 +38,39 @@ resolveVersion() {
 executeRun() {
   declare VERSION
   declare VERSION_PATH
-  declare TEX_VERSION_INFO
+  declare -A TEX_VERSION_INFO
   declare CMD
   declare CMD_PATH
+  declare CMD_NAME
   declare SCRIPT_NAME
   SCRIPT_NAME="${0##*/}"
+  CMD_NAME="${SCRIPT_NAME%%-*}"
   if [[ -d "${TEXENV_VERSIONS}" ]]; then
-    TEX_VERSION_INFO="$(resolveVersion)"
-    VERSION="$(awk -F": " '/TinyTeX-Version: /{print $2}' <<< "${TEX_VERSION_INFO}")"
-    VERSION_PATH="$(awk -F": " '/TinyTeX-Path: /{print $2}' <<< "${TEX_VERSION_INFO}")"
+    while IFS=': ' read -r KEY VALUE; do
+      [[ -n "${KEY}" && -n "${VALUE}" ]] && TEX_VERSION_INFO["${KEY}"]="${VALUE}"
+    done < <(resolveVersion || true)
+    VERSION="${TEX_VERSION_INFO["TinyTeX-Version"]:-}"
+    VERSION_PATH="${TEX_VERSION_INFO["TinyTeX-Path"]:-}"
     [[ -z "${VERSION}" || -z "${VERSION_PATH}" ]] && {
-      builtin echo "${SCRIPT_NAME%%-*}: no version set (use '${SCRIPT_NAME%%-*} global <version>' or '${SCRIPT_NAME%%-*} local <version>')" >&2
+      builtin echo "${CMD_NAME}: no version set (use '${CMD_NAME} global <version>' or '${CMD_NAME} local <version>')" >&2
       exit 1
     }
     CMD="${1:-}"
     shift || true
     [[ -z "${CMD}" ]] && {
-      builtin echo "${SCRIPT_NAME%%-*}: no command specified" >&2
+      builtin echo "${CMD_NAME}: no command specified" >&2
       exit 1
     }
     CMD_PATH="${TEXENV_VERSIONS}/${VERSION}/bin/${TEXENV_PLATFORM}/${CMD}"
     [[ -x "${CMD_PATH}" ]] || {
-      builtin echo "${SCRIPT_NAME%%-*}: command '${CMD}' not found in version '${VERSION}'" >&2
+      builtin echo "${CMD_NAME}: command '${CMD}' not found in version '${VERSION}'" >&2
       exit 1
     }
     export TEXMFHOME="${TEXMF_HOME:-}"
     export PATH="${TEXENV_VERSIONS}/${VERSION}/bin/${TEXENV_PLATFORM}:${PATH}"
     ${CMD_PATH} "${@}"
   else
-    builtin echo "${SCRIPT_NAME%%-*}: no version set (use '${SCRIPT_NAME%%-*} global <version>' or '${SCRIPT_NAME%%-*} local <version>')" >&2
+    builtin echo "${CMD_NAME}: no version set (use '${CMD_NAME} global <version>' or '${CMD_NAME} local <version>')" >&2
     exit 1
   fi
 }
