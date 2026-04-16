@@ -8,7 +8,7 @@ set -euo pipefail
 cmdVersions() {
   declare VERSION
   declare VERSION_PATH
-  declare TEX_VERSION_INFO
+  declare -A TEX_VERSION_INFO
   declare VERSIONS
   declare SCRIPT_NAME
   declare libs
@@ -26,9 +26,11 @@ cmdVersions() {
       ;;
   esac
   if [[ -d "${TEXENV_VERSIONS}" ]]; then
-    TEX_VERSION_INFO="$("${libs}" resolveVersion || true)"
-    VERSION="$(awk -F": " '/TinyTeX-Version: /{print $2}' <<< "${TEX_VERSION_INFO}")"
-    VERSION_PATH="$(awk -F": " '/TinyTeX-Path: /{print $2}' <<< "${TEX_VERSION_INFO}")"
+    while IFS=': ' read -r KEY VALUE; do
+      [[ -n "${KEY}" && -n "${VALUE}" ]] && TEX_VERSION_INFO["${KEY}"]="${VALUE}"
+    done < <("${libs}" resolveVersion || true)
+    VERSION="${TEX_VERSION_INFO["TinyTeX-Version"]:-}"
+    VERSION_PATH="${TEX_VERSION_INFO["TinyTeX-Path"]:-}"
     VERSIONS="$(find "${TEXENV_VERSIONS}" -maxdepth 1 ! -name "${TEXENV_VERSIONS##*/}" -type d)"
     [[ -z "${VERSIONS}" ]] && {
       builtin echo "${SCRIPT_NAME%%-*}: no versions installed" >&2
