@@ -8,7 +8,7 @@ set -euo pipefail
 cmdRestore() {
   declare FILE_NAME
   declare TEX_VERSION
-  declare TEX_VERSION_INFO
+  declare -A TEX_VERSION_INFO
   declare LOCK_TEX_VERSION
   declare LOCK_FLAG
   declare REQUIRE_LIST
@@ -38,8 +38,10 @@ cmdRestore() {
     builtin echo "${SCRIPT_NAME%%-*}: no requirements file found" >&2
     exit 1
   fi
-  TEX_VERSION_INFO="$("${libs}" resolveVersion || true)"
-  TEX_VERSION="$(awk -F": " '/TinyTeX-Version: /{print $2}' <<< "${TEX_VERSION_INFO}")"
+  while IFS=': ' read -r KEY VALUE; do
+    [[ -n "${KEY}" && -n "${VALUE}" ]] && TEX_VERSION_INFO["${KEY}"]="${VALUE}"
+  done < <("${libs}" resolveVersion || true)
+  TEX_VERSION="${TEX_VERSION_INFO["TinyTeX-Version"]:-}"
   LOCK_TEX_VERSION="$(awk -F ": " 'NR==1{print $2}' "${FILE_NAME}")"
   [[ -n "${TEX_VERSION:-}" && -n "${LOCK_TEX_VERSION:-}" ]] && (("${TEX_VERSION%%.*}" < "${LOCK_TEX_VERSION%%.*}")) && {
     builtin echo "${SCRIPT_NAME%%-*}: TeX Live version ${TEX_VERSION%%.*} is older than the required version ${LOCK_TEX_VERSION%%.*}" >&2
