@@ -49,8 +49,8 @@ cmdRestore() {
   }
   {
     builtin echo "Restoring TeX packages from ${FILE_NAME}..."
-    REQUIRE_LIST="$(diff -u <("${cmdExec}" tlmgr info --only-installed --data name) <([[ -n "${LOCK_FLAG:-}" ]] && awk 'NR>1{print $0}' < "${FILE_NAME}" || cat "${FILE_NAME}") | awk '/^\+.*/{gsub(/^\+/,"");if(NR>2){printf $0" "}}END{print ""}')"
-    [[ -z "${REQUIRE_LIST%% }" ]] && {
+    REQUIRE_LIST="$(grep -vxFf <("${cmdExec}" tlmgr info --only-installed --data name) <([[ -n "${LOCK_FLAG:-}" ]] && awk 'NR>1' < "${FILE_NAME}" || cat "${FILE_NAME}") || true)"
+    [[ -z "${REQUIRE_LIST}" ]] && {
       builtin echo "All required TeX packages are already installed."
       exit 0
     }
