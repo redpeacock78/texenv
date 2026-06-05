@@ -98,4 +98,15 @@ Describe 'texenv-restore'
     The output should include 'installing: pkgB'
     The output should not include 'installing: # TeX Live: 2025'
   End
+
+  It 'detects missing packages even when installed and required are in different order'
+    set_global_version 2025.01
+    setup_installed pkgC pkgA
+    setup_required_file pkgA pkgB pkgC
+    When call invoke
+    The status should equal 0
+    The line 2 of output should equal 'installing: pkgB'
+    The output should not include 'installing: pkgA'
+    The output should not include 'installing: pkgC'
+  End
 End
