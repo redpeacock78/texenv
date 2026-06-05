@@ -96,3 +96,9 @@ version
 .tex-version
 tex-require.txt
 tex-require.lock
+
+# shellspec / kcov
+/.shellspec-local
+/.shellspec-quick.log
+/report/
+/coverage/
