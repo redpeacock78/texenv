@@ -109,4 +109,14 @@ Describe 'texenv-restore'
     The output should not include 'installing: pkgA'
     The output should not include 'installing: pkgC'
   End
+
+  It 'treats an empty requirements file as nothing to install'
+    set_global_version 2025.01
+    setup_installed pkgA pkgB
+    : > "${TEXENV_DIR}/${TEX_REQUIREMENTS_FILE}"
+    When call invoke
+    The status should equal 0
+    The output should include 'All required TeX packages are already installed.'
+    The output should not include 'installing:'
+  End
 End
