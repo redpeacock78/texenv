@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  shellspec:
+    name: shellspec (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install shellspec
+        env:
+          SHELLSPEC_VERSION: "0.28.1"
+        run: |
+          curl -fsSL "https://github.com/shellspec/shellspec/archive/refs/tags/${SHELLSPEC_VERSION}.tar.gz" \
+            | tar -xz -C "${HOME}"
+          ln -s "${HOME}/shellspec-${SHELLSPEC_VERSION}/shellspec" "${HOME}/.local/bin/shellspec" 2>/dev/null \
+            || { mkdir -p "${HOME}/.local/bin" && ln -s "${HOME}/shellspec-${SHELLSPEC_VERSION}/shellspec" "${HOME}/.local/bin/shellspec"; }
+          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
+
+      - name: Install kcov (ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install -y kcov
+        continue-on-error: true
+
+      - name: Install kcov (macos)
+        if: matrix.os == 'macos-latest'
+        run: brew install kcov
+        continue-on-error: true
+
+      - name: Run shellspec (with kcov when available)
+        run: |
+          if command -v kcov >/dev/null 2>&1; then
+            shellspec --kcov
+          else
+            shellspec
+          fi
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.os }}
+          path: coverage/
+          if-no-files-found: ignore
