@@ -33,12 +33,8 @@ Describe 'texenv-restore'
     export TLMGR_INSTALLED_FIXTURE
   }
 
-  set_global_version() {
-    echo "$1" > "${TEXENV_ROOT}/${TEX_GLOBAL_VERSION_FILE}"
-  }
-
   invoke() {
-    ( cd "${TEXENV_DIR}" && "${TEXENV_SPEC_BIN}/texenv-restore" "$@" )
+    invoke_in_dir "${TEXENV_SPEC_BIN}/texenv-restore" "$@"
   }
 
   It 'fails when no requirements file is present'

@@ -8,6 +8,7 @@ export SPEC_REPO_ROOT
 
 # Source stub builders.
 . "${SPEC_REPO_ROOT}/spec/support/stubs/tlmgr.sh"
+. "${SPEC_REPO_ROOT}/spec/support/helpers.sh"
 
 # Initialize a fresh texenv environment under the shellspec temporary base.
 # Idempotent within a single Example: re-running clears state.
@@ -25,6 +26,7 @@ texenv_setup() {
   TEX_LOCAL_VERSION_FILE=".tex-version"
   TEX_REQUIREMENTS_FILE="tex-require.txt"
   TEX_REQUIREMENTS_LOCK_FILE="tex-require.lock"
+  TEX_CMD_LIST_CACHE="${TEXENV_CONFIG}/cmd_list_cache.txt"
 
   case "$(uname)" in
     Darwin) TEXENV_PLATFORM="universal-darwin" ;;
@@ -42,6 +44,7 @@ texenv_setup() {
   export TEXENV_HOOKS TEXMF_HOME TEXENV_DIR TEXENV_VERSION TEXENV_PLATFORM
   export TEX_GLOBAL_VERSION_FILE TEX_LOCAL_VERSION_FILE
   export TEX_REQUIREMENTS_FILE TEX_REQUIREMENTS_LOCK_FILE
+  export TEX_CMD_LIST_CACHE
 
   : "${SHELLSPEC_TMPBASE:?texenv_setup: SHELLSPEC_TMPBASE must be set by the shellspec runtime}"
   : "${TEXENV_ROOT:?texenv_setup: TEXENV_ROOT is empty, refusing to rm -rf}"
