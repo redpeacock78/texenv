@@ -12,6 +12,7 @@ cmdRestore() {
   declare LOCK_TEX_VERSION
   declare LOCK_FLAG
   declare REQUIRE_LIST
+  declare GREP_RC
   declare SCRIPT_NAME
   declare libs
   declare cmdHelp
@@ -49,7 +50,7 @@ cmdRestore() {
   }
   {
     builtin echo "Restoring TeX packages from ${FILE_NAME}..."
-    REQUIRE_LIST="$(grep -vxFf <("${cmdExec}" tlmgr info --only-installed --data name) <([[ -n "${LOCK_FLAG:-}" ]] && awk 'NR>1' < "${FILE_NAME}" || cat "${FILE_NAME}") || true)"
+    REQUIRE_LIST="$(grep -vxFf <("${cmdExec}" tlmgr info --only-installed --data name) <([[ -n "${LOCK_FLAG:-}" ]] && awk 'NR>1' < "${FILE_NAME}" || cat "${FILE_NAME}"))" || { GREP_RC=$?; [[ ${GREP_RC} -eq 1 ]] || return ${GREP_RC}; REQUIRE_LIST=""; }
     [[ -z "${REQUIRE_LIST}" ]] && {
       builtin echo "All required TeX packages are already installed."
       exit 0
