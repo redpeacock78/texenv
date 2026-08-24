@@ -33,6 +33,36 @@ Describe 'texenv-rehash'
     The output should include '2025.01 =>'
   End
 
+  refresh_cache_for_repeated_command() {
+    local path
+    invoke_rehash > /dev/null
+    texenv_make_version 2026.04
+    path="${TEXENV_VERSIONS}/2026.04/bin/${TEXENV_PLATFORM}/fakecmd"
+    printf '%s\n' '#!/usr/bin/env bash' 'exit 0' > "${path}"
+    chmod +x "${path}"
+    invoke_rehash > /dev/null
+    grep -Fxq "${path}" "${TEX_CMD_LIST_CACHE}"
+  }
+
+  It 'refreshes the cache when a new version repeats a command name'
+    When call refresh_cache_for_repeated_command
+    The status should equal 0
+  End
+
+  verify_symlink_command() {
+    local alias
+    alias="${TEXENV_VERSIONS}/2024.09/bin/${TEXENV_PLATFORM}/fakealias"
+    ln -s fakecmd "${alias}"
+    invoke_rehash > /dev/null
+    test -L "${TEXENV_SHIMS}/fakealias" || return 1
+    grep -Fxq "${alias}" "${TEX_CMD_LIST_CACHE}"
+  }
+
+  It 'keeps executable symlink commands as separate shims'
+    When call verify_symlink_command
+    The status should equal 0
+  End
+
   It 'clears shims successfully when no commands remain'
     invoke_rehash
     mv "${TEXENV_VERSIONS}/2024.09" "${SHELLSPEC_TMPBASE}/removed-2024.09"

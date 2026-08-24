@@ -9,6 +9,7 @@ cmdWhence() {
   declare CMD_NAME
   declare RESULT
   declare SCRIPT_NAME
+  declare VERSION_BIN
   declare libs
   declare cmdHelp
   SCRIPT_NAME="${0##*/}"
@@ -45,7 +46,12 @@ cmdWhence() {
     done < <(awk -F/ -v cmd="${CMD_NAME}" 'index($0, "/") && $NF == cmd {print}' "${TEX_CMD_LIST_CACHE}"))"
   fi
   [[ -z "${RESULT}" ]] && {
-    RESULT="$(find "${TEXENV_VERSIONS}" -path "*/bin/${TEXENV_PLATFORM}/${CMD_NAME}" ! -type d -exec bash -c 'for f in "${@}"; do [[ -x "${f}" ]] && builtin echo "${f}"; done' _ {} +)"
+    RESULT="$(
+      for VERSION_BIN in "${TEXENV_VERSIONS}"/*/bin/"${TEXENV_PLATFORM}"; do
+        [[ -d "${VERSION_BIN}" ]] || continue
+        find "${VERSION_BIN}" -name "${CMD_NAME}" ! -type d -exec bash -c 'for f in "${@}"; do [[ -f "${f}" && -x "${f}" ]] && builtin echo "${f}"; done' _ {} +
+      done
+    )"
   }
   [[ -z "${RESULT}" ]] && {
     builtin echo "${SCRIPT_NAME%%-*}: command '${CMD_NAME}' not found" >&2

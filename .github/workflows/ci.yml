@@ -43,7 +43,13 @@ jobs:
 
       - name: Install kcov (ubuntu)
         if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get update && sudo apt-get install -y kcov
+        run: |
+          sudo apt-get update
+          if apt-cache show kcov >/dev/null 2>&1; then
+            sudo apt-get install -y kcov
+          else
+            echo 'kcov is not available in the Ubuntu runner repositories; continuing without coverage.'
+          fi
         continue-on-error: true
 
       - name: Install kcov (macos)

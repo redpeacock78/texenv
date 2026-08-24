@@ -11,7 +11,9 @@ cmdRehash() {
   declare SHIMS_LIST
   declare ADD_DIFF_LIST
   declare RM_DIFF_LIST
+  declare CACHE_CHANGED
   declare FORCE_REHASH
+  declare VERSION_BIN
   declare SCRIPT_NAME
   declare TMP_SHIMS
   declare SHIM_SCRIPT_PATH
@@ -35,12 +37,22 @@ cmdRehash() {
     builtin echo "texenv: no versions installed" >&2
     exit 1
   }
-  CMD_PATH_LIST="$(find "${TEXENV_VERSIONS}" -path "*/bin/${TEXENV_PLATFORM}/*" ! -type d -exec bash -c 'for f in "${@}"; do [[ -x "${f}" ]] && builtin echo "${f}"; done' _ {} + | sort)"
+  CMD_PATH_LIST="$(
+    for VERSION_BIN in "${TEXENV_VERSIONS}"/*/bin/"${TEXENV_PLATFORM}"; do
+      [[ -d "${VERSION_BIN}" ]] || continue
+      find "${VERSION_BIN}" ! -type d -exec bash -c 'for f in "${@}"; do [[ -f "${f}" && -x "${f}" ]] && builtin echo "${f}"; done' _ {} +
+    done | sort
+  )"
   CMD_LIST="$(awk -F/ '!a[$NF]++{print $NF}' <<< "${CMD_PATH_LIST}")"
   SHIMS_LIST="$(find "${TEXENV_SHIMS}" -maxdepth 1 -type l | awk -F/ '!a[$NF]++{print $NF}')"
   ADD_DIFF_LIST="$(grep -Fxv -f <(builtin echo "${SHIMS_LIST}") <(builtin echo "${CMD_LIST}") 2> /dev/null || true)"
   RM_DIFF_LIST="$(grep -Fxv -f <(builtin echo "${CMD_LIST}") <(builtin echo "${SHIMS_LIST}") 2> /dev/null || true)"
-  [[ "${FORCE_REHASH:-0}" == 0 && -z "${ADD_DIFF_LIST}" && -z "${RM_DIFF_LIST}" ]] && {
+  CACHE_CHANGED=1
+  if [[ -f "${TEX_CMD_LIST_CACHE}" ]] && diff -q \
+    <(builtin printf '%s\n' "${CMD_PATH_LIST}") "${TEX_CMD_LIST_CACHE}" > /dev/null 2>&1; then
+    CACHE_CHANGED=0
+  fi
+  [[ "${FORCE_REHASH:-0}" == 0 && -z "${ADD_DIFF_LIST}" && -z "${RM_DIFF_LIST}" && "${CACHE_CHANGED}" == 0 ]] && {
     builtin echo "texenv: already up to date"
     return 0
   }

@@ -13,7 +13,6 @@
 # @(#)  grep
 # @(#)  bash
 # @(#)  curl
-# @(#)  perl
 # @(#)  find
 # @(#)  diff
 # @(#)  exec
@@ -21,6 +20,7 @@
 # @(#)  test
 # @(#)  awk
 # @(#)  cat
+# @(#)  ls
 # @(#)  tar
 # @(#)  tr
 ########################################
@@ -89,7 +89,11 @@ export TEX_CMD_LIST_CACHE
 
 # Read symbolic link to get absolute path
 readLinkFile() {
+  declare p
+  declare READLINK_PATH
+  declare LINK_INFO
   [[ "${1:+x}" ]] || return 1
+  READLINK_PATH="$(builtin type -P readlink || true)"
   p="${1}"
   until [[ "${p%/}" == "${p}" ]]; do p="${p%/}"; done
   [[ -e "${p}" ]] && p="${1}"
@@ -103,8 +107,12 @@ readLinkFile() {
     }
     [[ ! -L "${p}" ]] && p="${PWD%/}${p:+/}${p}" && set "${@}" "${p:-/}" && break
     set $((${1} - 1)) "${2}" "${3}" "${p}"
-    p="$(ls -dl "${p}")" || break
-    p="${p#*" $4 -> "}"
+    if [[ -n "${READLINK_PATH}" ]]; then
+      p="$("${READLINK_PATH}" "${p}")" || break
+    else
+      LINK_INFO="$(LC_ALL=C ls -dl "${p}")" || break
+      p="${LINK_INFO#*" $4 -> "}"
+    fi
   done 2> /dev/null
   builtin cd -L "${2}" && OLDPWD="${3}" && [[ "${5+x}" ]] && builtin printf '%s\n' "${5}"
 }

@@ -20,6 +20,8 @@ cmdInstall() {
   declare TEX_URL_PERFIX
   declare TEX_TMP
   declare TINYTEX_ARCHIVE_NAME
+  declare ARCHIVE_DIGEST
+  declare ARCHIVE_HASH
   declare VERSION_LIST
   declare FORCE_INSTALL
   declare SCRIPT_NAME
@@ -44,8 +46,63 @@ cmdInstall() {
       PER_PAGE="?per_page=100"
     fi
     curl -sL "https://api.github.com/repos/rstudio/tinytex-releases/releases${PER_PAGE:-}" |
-      awk '/"tag_name"/{gsub(/\"|\"v|\",/, "");print $2}' |
+      awk '/"tag_name"/{value=$2;gsub(/[",]/,"",value);sub(/^v/,"",value);print value}' |
       awk '{a[NR]=$0}END{for(i=NR;i>0;i--){print a[i]}}'
+  }
+  archiveDigest() {
+    declare RELEASE_TAG
+    declare RELEASE_JSON
+    if [[ "${VERSION}" == "daily" ]]; then
+      RELEASE_TAG="daily"
+    else
+      RELEASE_TAG="v${VERSION}"
+    fi
+    if ! RELEASE_JSON="$(curl -fsSL "https://api.github.com/repos/rstudio/tinytex-releases/releases/tags/${RELEASE_TAG}")"; then
+      return 1
+    fi
+    if [[ -n "$(builtin type -P jq || true)" ]]; then
+      builtin printf '%s' "${RELEASE_JSON}" |
+        jq -r --arg asset "${TINYTEX_ARCHIVE_NAME}" '.assets[] | select(.name == $asset) | .digest // empty'
+    else
+      builtin printf '%s' "${RELEASE_JSON}" |
+        tr -d '\r\n' |
+        awk -v asset="${TINYTEX_ARCHIVE_NAME}" '
+          BEGIN {RS="\\}[[:space:]]*,[[:space:]]*\\{"}
+          index($0, "\"name\"") && index($0, "\"" asset "\"") {
+            value=$0
+            sub(/^.*"digest"[[:space:]]*:[[:space:]]*"sha256:/, "", value)
+            sub(/".*/, "", value)
+            if (value ~ /^[[:xdigit:]]{64}$/) {
+              print "sha256:" value
+              exit
+            }
+          }'
+    fi
+  }
+  sha256File() {
+    declare FILE
+    declare HASH_TOOL
+    declare OUTPUT
+    declare HASH
+    FILE="${1:?}"
+    HASH_TOOL="$(builtin type -P sha256sum || true)"
+    if [[ -n "${HASH_TOOL}" ]]; then
+      OUTPUT="$("${HASH_TOOL}" "${FILE}")" || return 1
+      read -r HASH _ <<< "${OUTPUT}"
+    else
+      HASH_TOOL="$(builtin type -P shasum || true)"
+      if [[ -n "${HASH_TOOL}" ]]; then
+        OUTPUT="$("${HASH_TOOL}" -a 256 "${FILE}")" || return 1
+        read -r HASH _ <<< "${OUTPUT}"
+      else
+        HASH_TOOL="$(builtin type -P openssl || true)"
+        [[ -n "${HASH_TOOL}" ]] || return 1
+        OUTPUT="$("${HASH_TOOL}" dgst -sha256 "${FILE}")" || return 1
+        HASH="${OUTPUT##*= }"
+      fi
+    fi
+    [[ "${HASH}" =~ ^[[:xdigit:]]{64}$ ]] || return 1
+    builtin printf '%s\n' "${HASH,,}"
   }
   case "${1:-}" in
     -l | --list)
@@ -122,6 +179,20 @@ cmdInstall() {
       TEX_URL="${TEX_URL_PERFIX}/v${VERSION}/${TINYTEX_ARCHIVE_NAME}"
     }
   fi
+  if ! ARCHIVE_DIGEST="$(archiveDigest)"; then
+    builtin echo "${CMD_NAME}: failed to retrieve archive checksum for ${TINYTEX_ARCHIVE_NAME}" >&2
+    exit 1
+  fi
+  [[ "${ARCHIVE_DIGEST}" == sha256:* ]] || {
+    builtin echo "${CMD_NAME}: no SHA-256 digest published for ${TINYTEX_ARCHIVE_NAME}" >&2
+    exit 1
+  }
+  ARCHIVE_DIGEST="${ARCHIVE_DIGEST#sha256:}"
+  [[ "${ARCHIVE_DIGEST}" =~ ^[[:xdigit:]]{64}$ ]] || {
+    builtin echo "${CMD_NAME}: invalid SHA-256 digest published for ${TINYTEX_ARCHIVE_NAME}" >&2
+    exit 1
+  }
+  ARCHIVE_DIGEST="${ARCHIVE_DIGEST,,}"
   TEX_TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/texenv-install.XXXXXX")"
   TEX_TMP="${TEX_TMP_DIR}/${TINYTEX_ARCHIVE_NAME}"
   TEX_STAGE_DIR="$(mktemp -d "${TEXENV_VERSIONS}/.texenv-install.XXXXXX")"
@@ -149,6 +220,14 @@ cmdInstall() {
   }
   builtin echo "Downloading TinyTeX: ${TINYTEX_ARCHIVE_NAME}"
   curl -L -f --retry 10 --retry-delay 30 -# "${TEX_URL}" -o "${TEX_TMP}"
+  if ! ARCHIVE_HASH="$(sha256File "${TEX_TMP}")"; then
+    builtin echo "${CMD_NAME}: unable to calculate archive checksum" >&2
+    exit 1
+  fi
+  [[ "${ARCHIVE_HASH}" == "${ARCHIVE_DIGEST}" ]] || {
+    builtin echo "${CMD_NAME}: archive checksum mismatch for ${TINYTEX_ARCHIVE_NAME}" >&2
+    exit 1
+  }
   tar xf "${TEX_TMP}" -C "${TEX_STAGE_DIR}" --strip-components=1
   [[ -d "${TEX_STAGE_DIR}/bin/${TEXENV_PLATFORM}" ]] || {
     builtin echo "${CMD_NAME}: downloaded archive has no ${TEXENV_PLATFORM} binaries" >&2

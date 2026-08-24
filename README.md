@@ -1,49 +1,322 @@
+<!-- English README -->
+
+<div align="center">
+
+![Last commit](https://img.shields.io/github/last-commit/redpeacock78/texenv?style=flat-square)
+![Repository Stars](https://img.shields.io/github/stars/redpeacock78/texenv?style=flat-square)
+![Issues](https://img.shields.io/github/issues/redpeacock78/texenv?style=flat-square)
+![Open Issues](https://img.shields.io/github/issues-raw/redpeacock78/texenv?style=flat-square)
+![Bug Issues](https://img.shields.io/github/issues/redpeacock78/texenv/bug?style=flat-square)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/redpeacock78/texenv)
+<img src="https://www.emoji.family/api/emojis/%F0%9F%93%9D/twemoji/svg" alt="eyecatch" height="100">
+
 # texenv
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/redpeacock78/texenv)  
 
-A lightweight version manager for TinyTeX (minimal TeX Live) inspired by rbenv. It lets you install multiple TinyTeX releases side‑by‑side, select global or per‑project versions, expose TeX executables through shims, and freeze / restore package sets.
+A Bash version manager for TinyTeX, the minimal TeX Live distribution.
 
-## Features
+texenv lets you select a TeX Live version per project and run commands such as `pdflatex` and `tlmgr` through shims.
 
-- Install specific TinyTeX release versions (including a rolling daily build).
-- Maintain multiple versions concurrently under $HOME/.texenv/versions
-- Set a global default or per‑directory local version via .tex-version
-- Shims for TeX commands; automatic shim regeneration after tlmgr installs/updates/removals and explicit rehash command
-- Execute tlmgr and other TeX tools inside the currently selected version
-- Freeze installed package names to tex-require.txt or lock with TeX Live version in tex-require.lock
-- Restore installs any missing packages from a requirements file (does not remove extras)
-- Repository management for tlmgr:
-  - Auto-selects an appropriate repository based on TeX Live year (latest tlnet for current year, historic tlnet-final for past years)
-  - Show current repository and set per-version mirror overrides
-- Spawn a shell scoped to a specific TinyTeX version
-- Introspection helpers: which/where/whence, root, shims
-- Pure Bash implementation; see Requirements
-- No modification of system TeX installations
+It does not modify TeX Live installations managed outside texenv.
 
-## Requirements
+<br>
+<br>
 
-- Operating systems:
-  - macOS (Darwin): platform "universal-darwin", archives ".tgz"
-  - Linux x86_64: platform "x86_64-linux", archives ".tar.gz"
-  - Linux ARM64 (aarch64 / arm64): platform "aarch64-linux", archives ".tar.gz"
-  - Others are not supported (texenv exits with "unsupported OS").
-- Shell:
-  - Bash >= 4.x
-  - zsh users can eval the init snippet in their shell profile.
-  - POSIX sh is not supported.
-- Tools:
-  - curl
-  - perl with File::Find module (validated before tlmgr operations; see https://github.com/rstudio/tinytex/issues/419)
-  - tar
-  - find, grep, awk, diff, cat, mkdir, uname, sort, rm
-- Network:
-  - Internet access to GitHub Releases and API (for version list and archives)
+</div>
 
-## Installation
+<table>
+  <thead>
+    <tr>
+      <th style="text-align:center">🍔English</th>
+      <th style="text-align:center"><a href="README.ja.md">🍡日本語</a></th>
+    </tr>
+  </thead>
+</table>
 
-### Using anyenv (Recommended)
+<div align="center">
 
-If you have [anyenv](https://github.com/anyenv/anyenv) installed, you can easily install texenv:
+</div>
+
+## 🚀 How to use
+
+### Quick start
+
+After installation, add the initialization command to your shell configuration.
+
+```bash
+eval "$("${HOME}/.texenv/bin/texenv" init -)"
+```
+
+Install a TinyTeX release, choose the global version, and rebuild the shims.
+
+```bash
+texenv install 2026.04
+texenv global 2026.04
+texenv rehash
+```
+
+To pin a version to a project, run `texenv local` in that project directory.
+
+```bash
+texenv local 2026.04
+```
+
+Run a TeX command through the selected version.
+
+```bash
+pdflatex main.tex
+```
+
+### What texenv manages
+
+- Multiple TinyTeX release versions and the daily build.
+- Global, local, and shell-specific TeX Live version selection.
+- Shims for executable files in TeX Live `bin` directories.
+- TeX Live year-specific repositories for `tlmgr`.
+- Package snapshots in requirements and lock files.
+- SHA-256 verification of TinyTeX archives before extraction.
+
+### Selecting a version
+
+A global version is used when no local version applies.
+
+```bash
+texenv global 2026.04
+```
+
+A local version writes `.tex-version` in the current directory.
+
+texenv also searches parent directories for a local version, which takes precedence over the global version.
+
+```bash
+texenv local 2026.04
+```
+
+To select a version only for the current shell, evaluate the generated shell code.
+
+```bash
+eval "$(texenv shell 2026.04)"
+```
+
+Use the following commands to inspect installed versions and the current selection.
+
+```bash
+texenv versions
+texenv version
+```
+
+### Running TeX commands
+
+Run a command through the currently selected version with `texenv exec`.
+
+```bash
+texenv exec pdflatex main.tex
+texenv exec tlmgr info geometry
+```
+
+After rebuilding the shims, commands can be invoked directly.
+
+```bash
+texenv rehash
+pdflatex main.tex
+```
+
+Rebuild the shims after `tlmgr` installs, updates, uninstalls, or removes packages when necessary.
+
+### Finding commands
+
+Use `which` to find a shim.
+
+```bash
+texenv which pdflatex
+```
+
+Use `where` to find the executable in the selected version.
+
+```bash
+texenv where pdflatex
+```
+
+Use `whence` to list the executable in every installed version.
+
+```bash
+texenv whence pdflatex
+```
+
+When the same command exists in multiple versions, `whence` reports every matching path.
+
+### Managing the tlmgr repository
+
+Show the current repository.
+
+```bash
+texenv repo --show
+```
+
+Set a per-version mirror.
+
+```bash
+texenv repo --mirror https://mirror.example.org/tex-archive/systems/texlive/tlnet
+```
+
+Return to automatic repository selection.
+
+```bash
+texenv repo --reset
+```
+
+The current TeX Live year uses the latest `tlnet` repository.
+
+Older TeX Live years use the corresponding `tlnet-final` repository.
+
+### Freezing and restoring packages
+
+Save the names of installed packages.
+
+```bash
+texenv freeze
+```
+
+Use `--lock` to include the TeX Live year in a lock file.
+
+```bash
+texenv freeze --lock
+```
+
+The generated files are `tex-require.txt` and `tex-require.lock`.
+
+Restore packages that are listed but not installed.
+
+```bash
+texenv restore
+```
+
+If both files exist, texenv uses the lock file first.
+
+Restore stops when the current TeX Live year is older than the year recorded in the lock file.
+
+Restore does not remove packages that are not listed in the requirements file.
+
+### Inspecting the environment
+
+```bash
+texenv env
+texenv root
+texenv shims
+texenv commands
+```
+
+`env` displays the current version, TeX search paths, repository, and texenv-related PATH entries.
+
+`root` displays the texenv root directory.
+
+`shims` displays generated shims.
+
+`commands` displays available subcommands.
+
+### Directory layout
+
+The default layout after initialization is:
+
+```text
+~/.texenv/
+├── bin/texenv
+├── shims/
+├── versions/
+├── config/
+├── hooks/
+├── texmf/
+└── version
+```
+
+`versions/` stores the extracted TinyTeX tree for each version.
+
+`shims/` stores shims that dispatch to the selected version.
+
+`config/` stores the command cache and per-version mirror settings.
+
+`texmf/` is used as the user-level `TEXMF_HOME` directory.
+
+### Removing and updating texenv
+
+Remove an installed version with:
+
+```bash
+texenv uninstall 2026.04
+```
+
+Select another global or local version before removing the currently selected version.
+
+Update a Git checkout with:
+
+```bash
+cd "${HOME}/.texenv"
+git pull --ff-only
+texenv rehash
+```
+
+To remove texenv, delete `${HOME}/.texenv`, remove the initialization command from your shell configuration, and remove the texenv paths from `PATH`.
+
+## ⬇️ Install
+
+### Supported platforms
+
+- macOS（Darwin）
+- Linux x86_64
+- Linux ARM64（aarch64 or arm64）
+
+texenv exits at startup on unsupported operating systems and architectures.
+
+### Shell and commands
+
+Bash 4.x or later is required.
+
+zsh users should evaluate the output of `texenv init -` from their shell configuration.
+
+The following commands are required:
+
+- `bash`
+- `curl`
+- `tar`
+- `find`
+- `grep`
+- `awk`
+- `diff`
+- `cat`
+- `mkdir`
+- `mktemp`
+- `mv`
+- `ln`
+- `chmod`
+- `touch`
+- `date`
+- `uname`
+- `sort`
+- `tr`
+- `rm`
+- `ls`
+- One of `sha256sum`, `shasum`, or `openssl`
+
+`readlink` is optional.
+
+When available, texenv uses it to resolve symbolic links.
+
+When it is unavailable, texenv falls back to `ls -dl`.
+
+`jq` is optional and is used to parse the GitHub Releases API response when installed.
+
+Without `jq`, texenv parses only the asset information it needs.
+
+Perl and the `File::Find` module are required only when running `tlmgr`.
+
+TinyTeX invokes `tlmgr` through Perl, so ordinary TeX command execution does not perform this check.
+
+See the [TinyTeX documentation](https://yihui.org/tinytex/) and [TinyTeX issue #419](https://github.com/rstudio/tinytex/issues/419) for details.
+
+Network access to the GitHub Releases API, TinyTeX archives, and TeX Live repositories is required.
+
+### Installing with anyenv
+
+If you use [anyenv](https://github.com/anyenv/anyenv), install texenv with:
 
 ```bash
 rm -rf "${HOME}/.config/anyenv/anyenv-install"
@@ -51,301 +324,94 @@ anyenv install --init https://github.com/redpeacock78/anyenv-install.git texenv-
 anyenv install texenv
 ```
 
-Add texenv initialization lines to your shell profile (~/.bashrc, ~/.zshrc, etc.):
+Add the following line to your shell configuration.
 
 ```bash
 eval "$(anyenv init -)"
 ```
 
-### Manual Installation
+### Installing from Git
 
-Clone the repository somewhere on your PATH (recommended: $HOME/.texenv):
-
-```bash
-git clone https://github.com/redpeacock78/texenv.git ~/.texenv
-```
-
-Add texenv initialization lines to your shell profile (~/.bashrc, ~/.zshrc, etc.):
+Clone the repository to `~/.texenv`.
 
 ```bash
-eval "$(~/.texenv/bin/texenv init -)"
+git clone https://github.com/redpeacock78/texenv.git "${HOME}/.texenv"
 ```
 
-The `init -` snippet prepends `~/.texenv/bin` and `~/.texenv/shims` to `PATH`, sets
-`TEXENV_SHELL` to the current shell name, defines a `texenv()` shell function that
-handles special subcommands (e.g. `shell`), and automatically runs `texenv init` on
-each new shell session.
-
-Open a new shell (or source your profile). The first `texenv init` call will create
-all required directories automatically. You can also run it explicitly:
-
-### Directory Structure
-
-After installation, the following directory structure will be created:
-
-```text
-~/.texenv/
-  bin/texenv
-  shims/
-  versions/
-  config/
-  texmf/
-  version
-```
-
-Ensure ~/.texenv/bin and ~/.texenv/shims appear early in PATH (the init - output adds them).
-
-## Command overview
-
-Matches `texenv help`:
-
-- commands            List available commands
-- init                Initialize texenv environment
-- install [version]   Install specified TeX Live version
-- uninstall [version] Uninstall specified TeX Live version
-- version             Show current TeX Live version
-- versions            List installed TeX Live versions
-- shell [version]     Spawn a new shell with specified TeX Live version
-- global [version]    Set global TeX Live version
-- local [version]     Set local TeX Live version
-- repo [options]      Manage tlmgr repository
-- exec [cmd] [args]   Execute command in current TeX Live version
-- rehash              Rebuild shims for installed TeX Live versions
-- freeze [options]    Freeze installed TeX packages to requirements file
-- restore             Restore TeX packages from requirements file
-- which [cmd]         Show path to shim for specified command
-- where [cmd]         Show path to command in current TeX Live version
-- whence [cmd]        Show path to command in all installed TeX Live versions
-- env                 Display texenv environment information
-- root                Show texenv root directory
-- shims               Show executable file(s) from texenv shims directory
-- help                Show this help message
-
-## Upgrading texenv
+Add the following line to your shell configuration.
 
 ```bash
-cd ~/.texenv
-git pull --ff-only
-texenv rehash
+eval "$("${HOME}/.texenv/bin/texenv" init -)"
 ```
 
-## Installing TinyTeX versions
-
-List available versions (queried from tinytex-releases):
+Run `texenv init` after loading the shell configuration.
 
 ```bash
-texenv install --list
-# show more (paginated by API): 
-texenv install --list --all
+texenv init
 ```
 
-Install a specific version:
+### Archive checksum verification
+
+texenv obtains the SHA-256 digest for the selected TinyTeX archive from the corresponding GitHub Releases API asset.
+
+It compares the digest with the SHA-256 hash calculated locally before extracting the archive.
+
+Installation stops when the digest is missing, does not match, or no SHA-256 command is available.
+
+Older TinyTeX releases published before GitHub added asset digests may not have a digest.
+
+texenv does not provide an unverified installation path for those releases.
+
+macOS normally uses `.tgz` archives, while Linux normally uses `.tar.gz` archives.
+
+If the corresponding archive is unavailable, texenv falls back to `.tar.xz`.
+
+### Bash for development
+
+The Bash bundled with macOS may be older than 4.x.
+
+Put Bash 4.x or later first in `PATH` when developing on macOS.
+
+## ⛏️ Development
+
+Use [ShellSpec](https://github.com/shellspec/shellspec) for tests.
+
+Run the following command from the repository root.
 
 ```bash
-texenv install 2024.09
+shellspec
 ```
 
-Install / refresh the daily build:
+CI runs ShellSpec on `ubuntu-latest` and `macos-latest`.
 
-```bash
-texenv install daily
-```
+Run ShellSpec and `git diff --check` before submitting changes.
 
-The daily build is stored as `daily-YYYY.MM.DD` under `~/.texenv/versions/`.
-texenv first attempts to fetch the standard archive (`.tgz` on macOS, `.tar.gz` on
-Linux). If that URL returns a non-200 status, it falls back to the `.tar.xz` variant:
-- macOS: `TinyTeX-1-darwin.tar.xz`
-- Linux: `TinyTeX-1-linux-{arch}.tar.xz`
+## 📝 Todo
 
-Force reinstall an already installed version:
+Planned work is tracked in GitHub Issues.
 
-```bash
-texenv install --force 2024.09
-```
+## 📜 License
 
-## Listing installed versions
+texenv is distributed under the MIT License.
 
-```bash
-texenv versions
-```
+See [LICENSE](LICENSE).
 
-Output marks the active one with an asterisk and indicates which file set it (global version or a local .tex-version).
+### 🧩 Modules
 
-## Selecting the active version
+The texenv runtime uses Bash and standard operating-system commands.
 
-Set the global default:
+`jq` is optional.
 
-```bash
-texenv global 2024.09
-```
+ShellSpec is used for development tests.
 
-Set a project‑local version (writes .tex-version in the current directory):
+## 👏 Affected projects
 
-```bash
-texenv local 2024.11
-```
+- [TinyTeX](https://yihui.org/tinytex/)
+- [TinyTeX Releases](https://github.com/rstudio/tinytex-releases)
+- [rbenv](https://github.com/rbenv/rbenv)
 
-Check the current version:
+texenv is inspired by the TinyTeX distribution format and the rbenv shim model.
 
-```bash
-texenv version
-```
+## 💕 Special Thanks
 
-## Executing TeX commands
-
-Use texenv exec to run any TeX program inside the active version:
-
-```bash
-texenv exec pdflatex main.tex
-texenv exec tlmgr info geometry
-```
-
-Behavior with tlmgr:
-- Before tlmgr install/update/info/search, texenv ensures repository configuration (`texenv repo`).
-- After tlmgr install/update/uninstall/remove, shims are regenerated (`texenv rehash` invoked).
-
-Shims let you call commands directly (e.g. `pdflatex`) once generated. texenv resolves the correct version via TinyTeX-Version and source metadata.
-
-## Rehashing shims
-
-After installs, removals, or tlmgr operations that change available binaries:
-
-```bash
-texenv rehash
-```
-
-## Repository management (tlmgr)
-
-Show current repository:
-
-```bash
-texenv repo -s
-```
-
-Auto-selection (default):
-- If TeX Live year equals the current year, uses the latest tlnet:
-  - https://ctan.math.illinois.edu/systems/texlive/tlnet
-- Otherwise uses the historic archive for that year:
-  - https://ftp.math.utah.edu/pub/tex/historic/systems/texlive/[YEAR]/tlnet-final
-
-Set a per-version mirror override (persisted):
-
-```bash
-texenv repo -m https://mirror.example.org/tex-archive/systems/texlive/tlnet
-```
-
-Mirror overrides are stored at:
-
-- config/[version]/mirror_repo.txt
-
-If the requested repository matches the current setting, the command is a no-op.
-
-## Freezing packages
-
-Generate a requirements file of currently installed packages:
-
-```bash
-texenv freeze
-```
-
-Create a lock file including the TeX Live version (first line comment):
-
-```bash
-texenv freeze --lock
-# file header example:
-# TeX Live: 2024
-```
-
-Files produced:
-
-- tex-require.txt
-- tex-require.lock
-
-## Restoring packages
-
-Restore from whichever requirements file exists (prefers lock):
-
-```bash
-texenv restore
-```
-
-Notes:
-- Installs packages that are listed but not currently installed.
-- Does not remove extra packages.
-- If the lock file requires a newer TeX Live than the active one, restore aborts to protect compatibility.
-
-## Inspecting environment
-
-```bash
-texenv env
-```
-
-Shows:
-
-- Active TinyTeX version
-- TEXMF path variables (via kpsewhich)
-- Active configured repositories
-- texenv-related PATH entries
-- Installed versions summary
-
-## Shell-scoped version
-
-Spawn a new subshell with a specified version (exports TEXENV_VERSION for the shell):
-
-```bash
-eval "$(texenv shell 2024.09)"
-```
-
-If no version is provided and no shell-specific version is set, it reports the state.
-
-## Uninstalling a version
-
-```bash
-texenv uninstall 2024.09
-```
-
-## How version resolution works
-
-- Local .tex-version in the current or parent directories overrides global version.
-- Global version stored in ~/.texenv/version used when no local file found.
-- resolveVersion outputs both TinyTeX-Version and TinyTeX-Path (for shell-scoped versions, the path indicates the shell origin).
-
-## Directory layout
-
-- versions/[ver] contains the extracted TinyTeX tree (bin/[platform]/... etc.)
-- shims/[cmd] are small Bash launchers pointing back to bin/texenv exec
-- texmf/ is assigned to TEXMFHOME for user-level additions
-- config/ stores internal data:
-  - cmd_list_cache.txt
-  - [version]/mirror_repo.txt
-
-## Environment variables
-
-- `TEXENV_ROOT` (default: `$HOME/.texenv`) — installation root
-- `TEXENV_DIR` (default: current working directory) — used for local `.tex-version` lookup
-- `TEXENV_VERSION` — override active version for the current shell session
-- `TEXENV_PLATFORM` (detected: `universal-darwin`, `x86_64-linux`, or `aarch64-linux`)
-- `TEXENV_BIN` — path to `$TEXENV_ROOT/bin`; prepended to `PATH` by `init -`
-- `TEXENV_SHELL` — set to the current shell name (`${SHELL##*/}`) by `init -`
-- `TEXENV_DEBUG=1` — enables shell tracing (`set -x`)
-- `TEXMFHOME` — overridden to `$TEXENV_ROOT/texmf` (user TeX macro folder)
-
-## Removing texenv
-
-1. Delete ~/.texenv
-2. Remove initialization lines from your shell profile
-3. Remove PATH entries referencing ~/.texenv/bin and ~/.texenv/shims
-
-## Contributing
-
-- Open issues for bugs or enhancement ideas.
-- Submit pull requests with concise commits and description.
-- Keep code Bash-compatible; avoid external dependencies.
-
-## License
-
-MIT License. See LICENSE file.
-
-## Disclaimer
-
-texenv manages TinyTeX distributions non-destructively. It does not replace full TeX Live installations; for advanced scenarios (custom schemes, system-wide install) use official TeX Live tools directly.
+Thanks to [ShellSpec](https://github.com/shellspec/shellspec) and the developers of TeX Live and TinyTeX.
