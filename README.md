@@ -8,6 +8,7 @@
 ![Open Issues](https://img.shields.io/github/issues-raw/redpeacock78/texenv?style=flat-square)
 ![Bug Issues](https://img.shields.io/github/issues/redpeacock78/texenv/bug?style=flat-square)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/redpeacock78/texenv)
+<br>
 <img src="https://www.emoji.family/api/emojis/%F0%9F%93%9D/twemoji/svg" alt="eyecatch" height="100">
 
 # texenv
