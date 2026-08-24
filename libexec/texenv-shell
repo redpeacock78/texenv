@@ -7,19 +7,25 @@ set -euo pipefail
 cmdShell() {
   declare INSTALLED_VERSIONS
   declare SCRIPT_NAME
+  declare libs
   declare cmdHelp
   SCRIPT_NAME="${0##*/}"
+  libs="$(builtin type -P "texenv-libs" || true)"
   cmdHelp="$(builtin type -P "texenv-help" || true)"
-  [[ -z "${cmdHelp}" ]] && {
+  [[ -z "${libs}" || -z "${cmdHelp}" ]] && {
     builtin echo "builtin echo \"${SCRIPT_NAME%%-*}: required component(s) missing\""
     exit 1
   }
   case "${1:-}" in
     -h | --help)
-      builtin exec echo "builtin echo '$("${cmdHelp}" "${SCRIPT_NAME##*-}")'"
+      builtin exec "${cmdHelp}" "${SCRIPT_NAME##*-}"
       ;;
   esac
   if [[ -n "${1:-}" ]]; then
+    "${libs}" isSafeVersion "${1}" || {
+      builtin echo "builtin echo \"${SCRIPT_NAME%%-*}: invalid version identifier\""
+      exit 1
+    }
     [[ ! -d "${TEXENV_VERSIONS:-}" ]] && {
       builtin echo "builtin echo \"${SCRIPT_NAME%%-*}: no versions installed\""
       exit 1
@@ -29,11 +35,15 @@ cmdShell() {
       builtin echo "builtin echo \"${SCRIPT_NAME%%-*}: version '${1}' is not installed\""
       exit 1
     else
-      builtin echo "export TEXENV_VERSION=\"${1}\""
-      builtin echo "builtin echo \"${1}\""
+      builtin printf 'export TEXENV_VERSION=%s\n' "$("${libs}" shellQuote "${1}")"
+      builtin printf 'builtin echo %s\n' "$("${libs}" shellQuote "${1}")"
     fi
   elif [[ -n "${TEXENV_VERSION}" ]]; then
-    builtin echo "builtin echo \"${TEXENV_VERSION}\""
+    "${libs}" isSafeVersion "${TEXENV_VERSION}" || {
+      builtin echo "builtin echo \"${SCRIPT_NAME%%-*}: invalid version identifier\""
+      exit 1
+    }
+    builtin printf 'builtin echo %s\n' "$("${libs}" shellQuote "${TEXENV_VERSION}")"
   else
     builtin echo "builtin echo \"${SCRIPT_NAME%%-*}: no shell-specific version configured\""
   fi

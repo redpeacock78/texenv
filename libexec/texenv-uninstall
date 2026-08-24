@@ -12,14 +12,14 @@ cmdUninstall() {
   declare SUBCMD_NAME
   declare CONFIG_DIR
   declare libs
+  declare -a runHooks
   declare cmdHelp
-  declare runHooks
   SCRIPT_NAME="${0##*/}"
   CMD_NAME="${SCRIPT_NAME%%-*}"
   SUBCMD_NAME="${SCRIPT_NAME##*-}"
   libs="$(builtin type -P "${CMD_NAME}-libs" || true)"
   cmdHelp="$(builtin type -P "${CMD_NAME}-help" || true)"
-  runHooks="${libs} runHooks"
+  runHooks=("${libs}" runHooks)
   [[ -z "${libs}" || -z "${cmdHelp}" ]] && {
     builtin echo "${CMD_NAME}: required component(s) missing" >&2
     exit 1
@@ -40,6 +40,10 @@ cmdUninstall() {
     builtin echo "USAGE: ${CMD_NAME} ${SUBCMD_NAME} <version>" >&2
     exit 1
   }
+  "${libs}" isSafeVersion "${VERSION}" || {
+    builtin echo "${CMD_NAME}: invalid version identifier" >&2
+    exit 1
+  }
   [[ -d "${TEXENV_VERSIONS}/${VERSION}" ]] || {
     builtin echo "${CMD_NAME}: version ${VERSION} is not installed" >&2
     exit 1
@@ -49,7 +53,7 @@ cmdUninstall() {
     rm -rf "${TEXENV_VERSIONS}/${VERSION:?}"
     CONFIG_DIR="${TEXENV_CONFIG}/${VERSION:?}"
     [[ -d "${CONFIG_DIR}" ]] && rm -rf "${CONFIG_DIR:?}"
-    ${runHooks} "${SUBCMD_NAME}" post "${@}"
+    "${runHooks[@]}" "${SUBCMD_NAME}" post "${@}"
     builtin echo "TeX Live version ${VERSION} uninstalled successfully."
   } || {
     builtin echo "${CMD_NAME}: failed to uninstall version ${VERSION}" >&2

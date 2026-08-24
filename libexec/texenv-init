@@ -6,19 +6,24 @@ set -euo pipefail
 
 # Initialize texenv environment
 cmdInit() {
+  declare libs
   declare cmdHelp
   declare SCRIPT_NAME
+  declare SHELL_NAME
   SCRIPT_NAME="${0##*/}"
+  SHELL_NAME="${SHELL:-sh}"
+  SHELL_NAME="${SHELL_NAME##*/}"
+  libs="$(builtin type -P "texenv-libs" || true)"
   cmdHelp="$(builtin type -P "texenv-help" || true)"
-  [[ -z "${cmdHelp}" ]] && {
+  [[ -z "${libs}" || -z "${cmdHelp}" ]] && {
     builtin echo "${SCRIPT_NAME%%-*}: required component(s) missing" >&2
     exit 1
   }
   case "${1:-}" in
     -)
-      builtin echo "export PATH=\"${TEXENV_BIN}:\${PATH}\""
-      builtin echo "export PATH=\"${TEXENV_SHIMS}:\${PATH}\""
-      builtin echo "export TEXENV_SHELL=\"${SHELL##*/}\""
+      builtin printf 'export PATH=%s:${PATH}\n' "$("${libs}" shellQuote "${TEXENV_BIN}")"
+      builtin printf 'export PATH=%s:${PATH}\n' "$("${libs}" shellQuote "${TEXENV_SHIMS}")"
+      builtin printf 'export TEXENV_SHELL=%s\n' "$("${libs}" shellQuote "${SHELL_NAME}")"
       builtin echo "texenv() {"
       builtin echo "  local CMD"
       builtin echo "  CMD=\"\${1:-}\""

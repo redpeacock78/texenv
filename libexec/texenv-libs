@@ -4,15 +4,49 @@ declare -r TEXENV_DEBUG
 [[ "${TEXENV_DEBUG}" == 1 ]] && set -x
 set -euo pipefail
 
+isSafePathName() {
+  [[ "${1:-}" =~ ^[A-Za-z0-9._-]+$ && "${1:-}" != "." && "${1:-}" != ".." ]]
+}
+
+isSafeVersion() {
+  [[ "${#}" == 1 ]] && isSafePathName "${1}"
+}
+
+isSafeCommand() {
+  [[ "${#}" == 1 ]] && isSafePathName "${1}"
+}
+
+shellQuote() {
+  builtin printf '%q' "${1-}"
+}
+
+requireTlmgrPerl() {
+  declare CMD_NAME
+  declare PERL_PATH
+  CMD_NAME="${1:-texenv}"
+  PERL_PATH="$(builtin type -P perl || true)"
+  [[ -z "${PERL_PATH}" ]] && {
+    builtin echo "${CMD_NAME}: perl is required for tlmgr" >&2
+    return 1
+  }
+  "${PERL_PATH}" -mFile::Find /dev/null || {
+    builtin echo "${CMD_NAME}: perl with File::Find is required for tlmgr (https://github.com/rstudio/tinytex/issues/419)" >&2
+    return 1
+  }
+}
+
 # Display current TeX Live version
 resolveVersion() {
   declare DIR
   declare VERSION
   declare VERSION_PATH
+  declare NEXT_DIR
+  VERSION=""
+  VERSION_PATH=""
   DIR="${TEXENV_DIR}"
   if [[ -n "${TEXENV_VERSION}" ]]; then
     builtin echo "TinyTeX-Version: ${TEXENV_VERSION}"
-    builtin echo "TinyTeX-Path: ${TEXENV_SHELL}"
+    builtin echo "TinyTeX-Path: ${TEXENV_SHELL:-TEXENV_VERSION}"
   else
     [[ -d "${TEXENV_VERSIONS:-}" ]] && {
       if [[ -f "${TEXENV_ROOT}/${TEX_GLOBAL_VERSION_FILE}" ]]; then
@@ -25,8 +59,8 @@ resolveVersion() {
           VERSION_PATH="${DIR}/${TEX_LOCAL_VERSION_FILE}"
           break
         fi
-        DIR="${DIR%/*}"
-        [[ -z "${DIR}" ]] && break
+        NEXT_DIR="${DIR%/*}"
+        [[ "${NEXT_DIR}" == "${DIR}" ]] && DIR="/" || DIR="${NEXT_DIR:-/}"
       done
       [[ -n "${VERSION}" ]] && builtin echo "TinyTeX-Version: ${VERSION}"
       [[ -n "${VERSION_PATH}" ]] && builtin echo "TinyTeX-Path: ${VERSION_PATH}"
@@ -55,12 +89,21 @@ executeRun() {
       builtin echo "${CMD_NAME}: no version set (use '${CMD_NAME} global <version>' or '${CMD_NAME} local <version>')" >&2
       exit 1
     }
+    isSafeVersion "${VERSION}" || {
+      builtin echo "${CMD_NAME}: invalid version identifier" >&2
+      exit 1
+    }
     CMD="${1:-}"
     shift || true
     [[ -z "${CMD}" ]] && {
       builtin echo "${CMD_NAME}: no command specified" >&2
       exit 1
     }
+    isSafeCommand "${CMD}" || {
+      builtin echo "${CMD_NAME}: invalid command identifier" >&2
+      exit 1
+    }
+    [[ "${CMD}" == "tlmgr" ]] && requireTlmgrPerl "${CMD_NAME}"
     CMD_PATH="${TEXENV_VERSIONS}/${VERSION}/bin/${TEXENV_PLATFORM}/${CMD}"
     [[ -x "${CMD_PATH}" ]] || {
       builtin echo "${CMD_NAME}: command '${CMD}' not found in version '${VERSION}'" >&2
@@ -68,7 +111,7 @@ executeRun() {
     }
     export TEXMFHOME="${TEXMF_HOME:-}"
     export PATH="${TEXENV_VERSIONS}/${VERSION}/bin/${TEXENV_PLATFORM}:${PATH}"
-    ${CMD_PATH} "${@}"
+    "${CMD_PATH}" "${@}"
   else
     builtin echo "${CMD_NAME}: no version set (use '${CMD_NAME} global <version>' or '${CMD_NAME} local <version>')" >&2
     exit 1
@@ -103,6 +146,18 @@ main() {
     runHooks)
       shift || true
       runHooks "${@}"
+      ;;
+    isSafeVersion)
+      shift || true
+      isSafeVersion "${@}"
+      ;;
+    isSafeCommand)
+      shift || true
+      isSafeCommand "${@}"
+      ;;
+    shellQuote)
+      shift || true
+      shellQuote "${@}"
       ;;
   esac
 }

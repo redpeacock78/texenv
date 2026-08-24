@@ -30,17 +30,6 @@ declare -r TEXENV_DEBUG
 set -euo pipefail
 
 declare -r SCRIPT_NAME="${0##*/}"
-PERL_PATH="$(builtin type -P perl || true)"
-declare -r PERL_PATH
-if [[ -z "${PERL_PATH}" ]]; then
-  builtin echo "${SCRIPT_NAME}: perl is required" >&2
-  exit 1
-else
-  "${PERL_PATH}" -mFile::Find /dev/null || {
-    builtin echo "${SCRIPT_NAME}: perl is required but not found (https://github.com/rstudio/tinytex/issues/419)" >&2
-    exit 1
-  }
-fi
 
 OS_NAME="$(uname)"
 ARCH="$(uname -m)"

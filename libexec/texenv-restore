@@ -10,18 +10,22 @@ cmdRestore() {
   declare TEX_VERSION
   declare -A TEX_VERSION_INFO
   declare LOCK_TEX_VERSION
+  declare CURRENT_TEX_YEAR
+  declare LOCK_TEX_YEAR
   declare LOCK_FLAG
   declare REQUIRE_LIST
+  declare -a REQUIRE_PACKAGES
+  declare PACKAGE
   declare GREP_RC
   declare SCRIPT_NAME
   declare libs
   declare cmdHelp
-  declare cmdExec
+  declare -a cmdExec
   SCRIPT_NAME="${0##*/}"
   libs="$(builtin type -P "texenv-libs" || true)"
   cmdHelp="$(builtin type -P "texenv-help" || true)"
-  cmdExec="$(builtin type -P "texenv-exec" || true)"
-  [[ -z "${libs}" || -z "${cmdHelp}" || -z "${cmdExec}" ]] && {
+  cmdExec=("$(builtin type -P "texenv-exec" || true)")
+  [[ -z "${libs}" || -z "${cmdHelp}" || -z "${cmdExec[0]}" ]] && {
     builtin echo "${SCRIPT_NAME%%-*}: required component(s) missing" >&2
     exit 1
   }
@@ -43,19 +47,39 @@ cmdRestore() {
     [[ -n "${KEY}" && -n "${VALUE}" ]] && TEX_VERSION_INFO["${KEY}"]="${VALUE}"
   done < <("${libs}" resolveVersion || true)
   TEX_VERSION="${TEX_VERSION_INFO["TinyTeX-Version"]:-}"
-  LOCK_TEX_VERSION="$(awk -F ": " 'NR==1{print $2}' "${FILE_NAME}")"
-  [[ -n "${TEX_VERSION:-}" && -n "${LOCK_TEX_VERSION:-}" ]] && (("${TEX_VERSION%%.*}" < "${LOCK_TEX_VERSION%%.*}")) && {
-    builtin echo "${SCRIPT_NAME%%-*}: TeX Live version ${TEX_VERSION%%.*} is older than the required version ${LOCK_TEX_VERSION%%.*}" >&2
-    exit 1
-  }
+  if [[ -n "${LOCK_FLAG:-}" ]]; then
+    LOCK_TEX_VERSION="$(awk -F ": " 'NR==1{print $2}' "${FILE_NAME}")"
+    if [[ "${TEX_VERSION}" =~ ^daily-([0-9]{4})\. ]]; then
+      CURRENT_TEX_YEAR="${BASH_REMATCH[1]}"
+    else
+      CURRENT_TEX_YEAR="${TEX_VERSION%%.*}"
+    fi
+    LOCK_TEX_YEAR="${LOCK_TEX_VERSION%%.*}"
+    [[ "${CURRENT_TEX_YEAR}" =~ ^[0-9]{4}$ && "${LOCK_TEX_YEAR}" =~ ^[0-9]{4}$ ]] || {
+      builtin echo "${SCRIPT_NAME%%-*}: invalid TeX Live version in lock file" >&2
+      exit 1
+    }
+    ((10#${CURRENT_TEX_YEAR} < 10#${LOCK_TEX_YEAR})) && {
+      builtin echo "${SCRIPT_NAME%%-*}: TeX Live version ${CURRENT_TEX_YEAR} is older than the required version ${LOCK_TEX_YEAR}" >&2
+      exit 1
+    }
+  fi
   {
     builtin echo "Restoring TeX packages from ${FILE_NAME}..."
-    REQUIRE_LIST="$(grep -vxFf <("${cmdExec}" tlmgr info --only-installed --data name) <([[ -n "${LOCK_FLAG:-}" ]] && awk 'NR>1' < "${FILE_NAME}" || cat "${FILE_NAME}"))" || { GREP_RC=$?; [[ ${GREP_RC} -eq 1 ]] || return ${GREP_RC}; REQUIRE_LIST=""; }
+    REQUIRE_LIST="$(grep -vxFf <("${cmdExec[@]}" tlmgr info --only-installed --data name) <([[ -n "${LOCK_FLAG:-}" ]] && awk 'NR>1' < "${FILE_NAME}" || cat "${FILE_NAME}"))" || { GREP_RC=$?; [[ ${GREP_RC} -eq 1 ]] || return ${GREP_RC}; REQUIRE_LIST=""; }
     [[ -z "${REQUIRE_LIST}" ]] && {
       builtin echo "All required TeX packages are already installed."
       exit 0
     }
-    "${cmdExec}" tlmgr install ${REQUIRE_LIST}
+    while IFS= read -r PACKAGE; do
+      [[ -z "${PACKAGE}" ]] && continue
+      [[ "${PACKAGE}" =~ ^[A-Za-z0-9][A-Za-z0-9._+-]*$ ]] || {
+        builtin echo "${SCRIPT_NAME%%-*}: invalid package name in requirements" >&2
+        exit 1
+      }
+      REQUIRE_PACKAGES+=("${PACKAGE}")
+    done <<< "${REQUIRE_LIST}"
+    "${cmdExec[@]}" tlmgr install "${REQUIRE_PACKAGES[@]}"
   } || {
     builtin echo "${SCRIPT_NAME%%-*}: failed to restore TeX packages" >&2
     exit 1

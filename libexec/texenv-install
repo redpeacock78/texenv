@@ -4,21 +4,28 @@ declare -r TEXENV_DEBUG
 [[ "${TEXENV_DEBUG}" == 1 ]] && set -x
 set -euo pipefail
 
+# State used by the EXIT trap after cmdInstall returns.
+declare TEX_DIR
+declare TEX_TMP_DIR
+declare TEX_STAGE_DIR
+declare TEX_BACKUP_DIR
+declare VERSION
+declare INSTALL_STATUS
+declare CMD_NAME
+declare TEX_INSTALL_MOVED
+
 # Install specified TeX Live version
 cmdInstall() {
-  declare TEX_DIR
   declare TEX_URL
   declare TEX_URL_PERFIX
   declare TEX_TMP
   declare TINYTEX_ARCHIVE_NAME
-  declare VERSION
   declare VERSION_LIST
   declare FORCE_INSTALL
-  declare INSTALL_STATUS
   declare SCRIPT_NAME
-  declare CMD_NAME
   declare SUBCMD_NAME
   declare libs
+  declare -a runHooks
   declare cmdHelp
   SCRIPT_NAME="${0##*/}"
   CMD_NAME="${SCRIPT_NAME%%-*}"
@@ -26,7 +33,7 @@ cmdInstall() {
   TEX_URL_PERFIX="https://github.com/rstudio/tinytex-releases/releases/download"
   libs="$(builtin type -P "${CMD_NAME}-libs" || true)"
   cmdHelp="$(builtin type -P "${CMD_NAME}-help" || true)"
-  runHooks="${libs} runHooks"
+  runHooks=("${libs}" runHooks)
   [[ -z "${libs}" || -z "${cmdHelp}" ]] && {
     builtin echo "${CMD_NAME}: required component(s) missing" >&2
     exit 1
@@ -74,6 +81,10 @@ cmdInstall() {
     builtin echo "${CMD_NAME}: ${SUBCMD_NAME} [options] <version>" >&2
     exit 1
   }
+  "${libs}" isSafeVersion "${VERSION}" || {
+    builtin echo "${CMD_NAME}: invalid version identifier" >&2
+    exit 1
+  }
   TEX_DIR="${TEXENV_VERSIONS}/${VERSION/daily/daily-$(date +%Y.%m.%d)}"
   [[ -d "${TEX_DIR}" && "${FORCE_INSTALL:-0}" != 1 ]] && {
     builtin echo "${CMD_NAME}: version ${VERSION} is already installed" >&2
@@ -111,27 +122,49 @@ cmdInstall() {
       TEX_URL="${TEX_URL_PERFIX}/v${VERSION}/${TINYTEX_ARCHIVE_NAME}"
     }
   fi
-  TEX_TMP="$(mktemp "/tmp/TinyTeX.XXXXXX.${TINYTEX_ARCHIVE_EXT}")"
+  TEX_TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/texenv-install.XXXXXX")"
+  TEX_TMP="${TEX_TMP_DIR}/${TINYTEX_ARCHIVE_NAME}"
+  TEX_STAGE_DIR="$(mktemp -d "${TEXENV_VERSIONS}/.texenv-install.XXXXXX")"
   cleanup() {
-    [[ -n "${TEX_TMP:-}" && -f "${TEX_TMP}" ]] && rm -rf "${TEX_TMP:?}"
+    declare STATUS
+    STATUS=$?
+    [[ -n "${TEX_TMP_DIR:-}" && -d "${TEX_TMP_DIR}" ]] && rm -rf "${TEX_TMP_DIR:?}" || true
     [[ "${INSTALL_STATUS:-0}" != 1 ]] && {
-      [[ -n "${TEX_DIR:-}" && -d "${TEX_DIR}" ]] && rm -rf "${TEX_DIR:?}"
+      [[ -n "${TEX_STAGE_DIR:-}" && -d "${TEX_STAGE_DIR}" ]] && rm -rf "${TEX_STAGE_DIR:?}" || true
+      if [[ "${TEX_INSTALL_MOVED:-0}" == 1 ]]; then
+        [[ -d "${TEX_DIR}" ]] && rm -rf "${TEX_DIR:?}" || true
+      fi
+      if [[ -n "${TEX_BACKUP_DIR:-}" && -d "${TEX_BACKUP_DIR}" ]]; then
+        mv "${TEX_BACKUP_DIR}" "${TEX_DIR}" || true
+      fi
       builtin echo "${CMD_NAME}: failed to install version ${VERSION}" >&2
     }
+    [[ "${INSTALL_STATUS:-0}" == 1 && -n "${TEX_BACKUP_DIR:-}" && -d "${TEX_BACKUP_DIR}" ]] && rm -rf "${TEX_BACKUP_DIR:?}" || true
+    return "${STATUS}"
   }
   trap cleanup EXIT INT TERM
   builtin echo "Installing TeX Live version ${VERSION}..."
   [[ "${FORCE_INSTALL:-0}" == 1 ]] && {
     builtin echo "Reinstalling existing version ${VERSION}..."
   }
-  mkdir -p "${TEX_DIR}"
   builtin echo "Downloading TinyTeX: ${TINYTEX_ARCHIVE_NAME}"
   curl -L -f --retry 10 --retry-delay 30 -# "${TEX_URL}" -o "${TEX_TMP}"
-  tar xf "${TEX_TMP}" -C "${TEX_DIR}" --strip-components=1
-  rm -rf "${TEX_TMP}"
+  tar xf "${TEX_TMP}" -C "${TEX_STAGE_DIR}" --strip-components=1
+  [[ -d "${TEX_STAGE_DIR}/bin/${TEXENV_PLATFORM}" ]] || {
+    builtin echo "${CMD_NAME}: downloaded archive has no ${TEXENV_PLATFORM} binaries" >&2
+    exit 1
+  }
+  if [[ -d "${TEX_DIR}" ]]; then
+    TEX_BACKUP_DIR="${TEXENV_VERSIONS}/.texenv-backup.${$}"
+    mv "${TEX_DIR}" "${TEX_BACKUP_DIR}"
+  fi
+  mv "${TEX_STAGE_DIR}" "${TEX_DIR}"
+  TEX_INSTALL_MOVED=1
   builtin echo "TeX Live version ${VERSION} installed successfully."
+  "${runHooks[@]}" "${SUBCMD_NAME}" post "${@}"
   INSTALL_STATUS=1
-  ${runHooks} "${SUBCMD_NAME}" post "${@}"
+  [[ -n "${TEX_TMP_DIR:-}" && -d "${TEX_TMP_DIR}" ]] && rm -rf "${TEX_TMP_DIR:?}" || true
+  [[ -n "${TEX_BACKUP_DIR:-}" && -d "${TEX_BACKUP_DIR}" ]] && rm -rf "${TEX_BACKUP_DIR:?}" || true
   trap - EXIT INT TERM
 }
 

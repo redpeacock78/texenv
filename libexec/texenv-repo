@@ -8,8 +8,8 @@ set -euo pipefail
 cmdRepo() {
   declare libs
   declare cmdHelp
-  declare executeRun
-  declare resolveVersion
+  declare -a executeRun
+  declare -a resolveVersion
   declare VERSION
   declare REPO
   declare DEFAULT_REPO
@@ -18,6 +18,7 @@ cmdRepo() {
   declare CURRENT_YEAR
   declare MIRROR
   declare MIRROR_REPO
+  declare REMOVE_MIRROR
   declare RESET
   declare UNIQUE_REPO
   declare MIRROR_FILE
@@ -27,15 +28,15 @@ cmdRepo() {
   SCRIPT_NAME="${0##*/}"
   libs="$(builtin type -P "texenv-libs" || true)"
   cmdHelp="$(builtin type -P "texenv-help" || true)"
-  executeRun="${libs} executeRun"
-  resolveVersion="${libs} resolveVersion"
+  executeRun=("${libs}" executeRun)
+  resolveVersion=("${libs}" resolveVersion)
   [[ -z "${libs}" || -z "${cmdHelp}" ]] && {
     builtin echo "${SCRIPT_NAME%%-*}: required component(s) missing" >&2
     exit 1
   }
   case "${1:-}" in
     -s | --show)
-      ${executeRun} tlmgr option repository | awk -F": " '{print $2}'
+      "${executeRun[@]}" tlmgr option repository | awk -F": " '{print $2}'
       exit 0
       ;;
     -m | --mirror)
@@ -52,10 +53,14 @@ cmdRepo() {
   esac
   while IFS=': ' read -r KEY VALUE; do
     [[ -n "${KEY}" && -n "${VALUE}" ]] && TEX_VERSION_INFO["${KEY}"]="${VALUE}"
-  done < <(${resolveVersion} || true)
+  done < <("${resolveVersion[@]}" || true)
   VERSION="${TEX_VERSION_INFO["TinyTeX-Version"]:-}"
   [[ -z "${VERSION}" ]] && {
     builtin echo "${SCRIPT_NAME%%-*}: no version set (use '${SCRIPT_NAME%%-*} global <version>' or '${SCRIPT_NAME%%-*} local <version>')" >&2
+    exit 1
+  }
+  "${libs}" isSafeVersion "${VERSION}" || {
+    builtin echo "${SCRIPT_NAME%%-*}: invalid version identifier" >&2
     exit 1
   }
   regex='^(https?|ftp|file)://.*'
@@ -68,7 +73,7 @@ cmdRepo() {
       exit 1
     }
   }
-  CURRENT_REPO="$(${executeRun} tlmgr option repository | awk -F": " '{print $2}')"
+  CURRENT_REPO="$("${executeRun[@]}" tlmgr option repository | awk -F": " '{print $2}')"
   if [[ "${MIRROR:-}" == 1 ]]; then
     [[ -d "${TEXENV_CONFIG}" ]] || {
       builtin echo "${SCRIPT_NAME%%-*}: run '${SCRIPT_NAME%%-*} init' first" >&2
@@ -89,11 +94,12 @@ cmdRepo() {
     REPO="${MIRROR_REPO}"
   elif [[ "${RESET:-}" == 1 ]]; then
     REPO="${DEFAULT_REPO}"
+    REMOVE_MIRROR=1
     [[ "${REPO}" == "${CURRENT_REPO}" ]] && {
+      [[ -f "${MIRROR_FILE}" ]] && rm -f "${MIRROR_FILE}"
       builtin echo "${SCRIPT_NAME%%-*}: Repository is already set to the default repository."
       return 0
     }
-    [[ -f "${MIRROR_FILE}" ]] && rm -f "${MIRROR_FILE}"
   elif [[ -n "${UNIQUE_REPO:-}" ]]; then
     [[ ! "${UNIQUE_REPO}" =~ ${regex} ]] && {
       builtin echo "${SCRIPT_NAME%%-*}: invalid mirror repository URL '${UNIQUE_REPO}'" >&2
@@ -105,7 +111,7 @@ cmdRepo() {
     }
     REPO="${UNIQUE_REPO}"
   else
-    VERSION_YEAR="$(${executeRun} tlmgr --version | awk 'END{print $5}')"
+    VERSION_YEAR="$("${executeRun[@]}" tlmgr --version | awk 'END{print $5}')"
     CURRENT_YEAR="$(date +%Y)"
     [[ -z "${VERSION_YEAR}" ]] && {
       builtin echo "${SCRIPT_NAME%%-*}: failed to determine TeX Live version year" >&2
@@ -119,12 +125,8 @@ cmdRepo() {
       }
     else
       REPO="https://ftp.math.utah.edu/pub/tex/historic/systems/texlive/${VERSION_YEAR}/tlnet-final"
-      REPO_STATUS="$(curl -sSIL "${REPO}" -o /dev/null -w "%{http_code}" || true)"
-      [[ "${REPO_STATUS}" != "200" ]] && {
-        REPO="${DEFAULT_REPO}"
-      }
       [[ "${REPO}" == "${CURRENT_REPO}" ]] && {
-        builtin echo "${SCRIPT_NAME%%-*}: Repository is already set to the latest TeX Live repository."
+        builtin echo "${SCRIPT_NAME%%-*}: Repository is already set to the historic TeX Live repository."
         return 0
       }
     fi
@@ -133,9 +135,16 @@ cmdRepo() {
     builtin echo "${SCRIPT_NAME%%-*}: Setting tlmgr repository to ${REPO}..."
     [[ "${MIRROR:-}" == "1" ]] && {
       mkdir -p "${TEXENV_CONFIG}/${VERSION}"
-      builtin echo "${REPO}" > "${MIRROR_FILE}"
     }
-    ${executeRun} tlmgr option repository "${REPO}"
+    if ! "${executeRun[@]}" tlmgr option repository "${REPO}"; then
+      builtin echo "${SCRIPT_NAME%%-*}: failed to set tlmgr repository" >&2
+      return 1
+    fi
+    if [[ "${MIRROR:-}" == "1" ]]; then
+      builtin echo "${REPO}" > "${MIRROR_FILE}"
+    elif [[ "${REMOVE_MIRROR:-}" == "1" ]]; then
+      rm -f "${MIRROR_FILE}"
+    fi
   } || {
     builtin echo "${SCRIPT_NAME%%-*}: failed to set tlmgr repository" >&2
     exit 1

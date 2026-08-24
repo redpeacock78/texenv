@@ -17,7 +17,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Install bash (macos)
         if: matrix.os == 'macos-latest'
@@ -26,9 +26,17 @@ jobs:
       - name: Install shellspec
         env:
           SHELLSPEC_VERSION: "0.28.1"
+          SHELLSPEC_SHA256: "400d835466429a5fe6c77a62775a9173729d61dd43e05dfa893e8cf6cb511783"
         run: |
+          archive="${RUNNER_TEMP}/shellspec-${SHELLSPEC_VERSION}.tar.gz"
           curl -fsSL "https://github.com/shellspec/shellspec/archive/refs/tags/${SHELLSPEC_VERSION}.tar.gz" \
-            | tar -xz -C "${HOME}"
+            -o "${archive}"
+          if command -v sha256sum >/dev/null 2>&1; then
+            printf '%s  %s\n' "${SHELLSPEC_SHA256}" "${archive}" | sha256sum -c -
+          else
+            printf '%s  %s\n' "${SHELLSPEC_SHA256}" "${archive}" | shasum -a 256 -c -
+          fi
+          tar -xz -C "${HOME}" -f "${archive}"
           ln -s "${HOME}/shellspec-${SHELLSPEC_VERSION}/shellspec" "${HOME}/.local/bin/shellspec" 2>/dev/null \
             || { mkdir -p "${HOME}/.local/bin" && ln -s "${HOME}/shellspec-${SHELLSPEC_VERSION}/shellspec" "${HOME}/.local/bin/shellspec"; }
           echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
@@ -53,7 +61,7 @@ jobs:
 
       - name: Upload coverage artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: coverage-${{ matrix.os }}
           path: coverage/

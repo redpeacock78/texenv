@@ -33,7 +33,7 @@ A lightweight version manager for TinyTeX (minimal TeX Live) inspired by rbenv. 
   - POSIX sh is not supported.
 - Tools:
   - curl
-  - perl with File::Find module (validated at startup)
+  - perl with File::Find module (validated before tlmgr operations; see https://github.com/rstudio/tinytex/issues/419)
   - tar
   - find, grep, awk, diff, cat, mkdir, uname, sort, rm
 - Network:

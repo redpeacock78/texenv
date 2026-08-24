@@ -7,6 +7,7 @@ set -euo pipefail
 # Rebuild shims for installed TeX Live versions
 cmdRehash() {
   declare CMD_LIST
+  declare CMD_PATH_LIST
   declare SHIMS_LIST
   declare ADD_DIFF_LIST
   declare RM_DIFF_LIST
@@ -34,11 +35,8 @@ cmdRehash() {
     builtin echo "texenv: no versions installed" >&2
     exit 1
   }
-  CMD_LIST="$(find "${TEXENV_VERSIONS}" -path "*/bin/${TEXENV_PLATFORM}/*" ! -type d -exec bash -c 'for f in "${@}"; do [[ -x "${f}" ]] && builtin echo "${f}"; done' _ {} + | awk -F/ '!a[$NF]++{print $NF}')"
-  [[ -z "${CMD_LIST}" ]] && {
-    builtin echo "texenv: no commands found in installed versions" >&2
-    exit 1
-  }
+  CMD_PATH_LIST="$(find "${TEXENV_VERSIONS}" -path "*/bin/${TEXENV_PLATFORM}/*" ! -type d -exec bash -c 'for f in "${@}"; do [[ -x "${f}" ]] && builtin echo "${f}"; done' _ {} + | sort)"
+  CMD_LIST="$(awk -F/ '!a[$NF]++{print $NF}' <<< "${CMD_PATH_LIST}")"
   SHIMS_LIST="$(find "${TEXENV_SHIMS}" -maxdepth 1 -type l | awk -F/ '!a[$NF]++{print $NF}')"
   ADD_DIFF_LIST="$(grep -Fxv -f <(builtin echo "${SHIMS_LIST}") <(builtin echo "${CMD_LIST}") 2> /dev/null || true)"
   RM_DIFF_LIST="$(grep -Fxv -f <(builtin echo "${CMD_LIST}") <(builtin echo "${SHIMS_LIST}") 2> /dev/null || true)"
@@ -60,11 +58,12 @@ cmdRehash() {
   TMP_SHIMS="$(mktemp -d "${TEXENV_ROOT}/.temp_shims_XXXXXX")"
   SHIM_SCRIPT_PATH="${TEXENV_LIBEXEC}/.texenv-shim"
   while read -r CMD; do
+    [[ -n "${CMD}" ]] || continue
     declare SHIM_PATH
     SHIM_PATH="${TMP_SHIMS}/${CMD}"
     ln -s "${SHIM_SCRIPT_PATH}" "${SHIM_PATH}"
-  done < <(builtin echo "${CMD_LIST}")
-  builtin echo "${CMD_LIST}" > "${TEX_CMD_LIST_CACHE}"
+  done <<< "${CMD_LIST}"
+  builtin printf '%s\n' "${CMD_PATH_LIST}" > "${TEX_CMD_LIST_CACHE}"
   mv "${TMP_SHIMS}" "${TEXENV_SHIMS}"
   [[ -n "${BACKUP_SHIMS:-}" && -d "${BACKUP_SHIMS}" ]] && rm -rf "${BACKUP_SHIMS:?}"
   trap - ERR INT TERM

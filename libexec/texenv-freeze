@@ -4,6 +4,9 @@ declare -r TEXENV_DEBUG
 [[ "${TEXENV_DEBUG}" == 1 ]] && set -x
 set -euo pipefail
 
+# State used by the EXIT trap after cmdFreeze returns.
+declare TMP_FILE
+
 # Freeze TeX packages to requirements file
 cmdFreeze() {
   declare FILE
@@ -31,13 +34,24 @@ cmdFreeze() {
       builtin exec "${cmdHelp}" "${SCRIPT_NAME##*-}"
       ;;
   esac
+  TMP_FILE="$(mktemp "${FILE}.XXXXXX")"
+  cleanup() {
+    [[ -n "${TMP_FILE:-}" && -f "${TMP_FILE}" ]] && rm -f "${TMP_FILE:?}" || true
+  }
+  trap cleanup EXIT INT TERM
+  builtin echo "Freezing TeX packages to ${FILE}..."
   {
-    builtin echo "Freezing TeX packages to ${FILE}..."
-    cat <([[ -z "${TEX_VERSION:-}" ]] || builtin echo "# TeX Live: ${TEX_VERSION}") <("${cmdExec}" tlmgr info --only-installed --data name) > "${FILE}"
-  } || {
+    [[ -z "${TEX_VERSION:-}" ]] || builtin printf '# TeX Live: %s\n' "${TEX_VERSION}"
+    "${cmdExec}" tlmgr info --only-installed --data name
+  } > "${TMP_FILE}" || {
     builtin echo "${SCRIPT_NAME%%-*}: failed to freeze TeX packages" >&2
     exit 1
   }
+  mv "${TMP_FILE}" "${FILE}" || {
+    builtin echo "${SCRIPT_NAME%%-*}: failed to freeze TeX packages" >&2
+    exit 1
+  }
+  trap - EXIT INT TERM
 }
 
 cmdFreeze "${@}"

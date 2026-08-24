@@ -30,12 +30,20 @@ cmdWhere() {
     builtin echo "${SCRIPT_NAME%%-*}: no command specified" >&2
     exit 1
   }
+  "${libs}" isSafeCommand "${CMD_NAME}" || {
+    builtin echo "${SCRIPT_NAME%%-*}: invalid command identifier" >&2
+    exit 1
+  }
   while IFS=': ' read -r KEY VALUE; do
     [[ -n "${KEY}" && -n "${VALUE}" ]] && TEX_VERSION_INFO["${KEY}"]="${VALUE}"
   done < <("${libs}" resolveVersion || true)
   VERSION="${TEX_VERSION_INFO["TinyTeX-Version"]:-}"
   [[ -z "${VERSION}" ]] && {
     builtin echo "${SCRIPT_NAME%%-*}: no version set (use '${SCRIPT_NAME%%-*} global <version>' or '${SCRIPT_NAME%%-*} local <version>')" >&2
+    exit 1
+  }
+  "${libs}" isSafeVersion "${VERSION}" || {
+    builtin echo "${SCRIPT_NAME%%-*}: invalid version identifier" >&2
     exit 1
   }
   CMD_PATH="${TEXENV_VERSIONS}/${VERSION}/bin/${TEXENV_PLATFORM}/${CMD_NAME}"

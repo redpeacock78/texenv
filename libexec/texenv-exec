@@ -8,8 +8,8 @@ set -euo pipefail
 cmdExec() {
   declare cmdHelp
   declare libs
-  declare runHooks
-  declare executeRun
+  declare -a runHooks
+  declare -a executeRun
   declare SCRIPT_NAME
   declare CMD_NAME
   declare SUBCMD_NAME
@@ -18,8 +18,8 @@ cmdExec() {
   SUBCMD_NAME="${SCRIPT_NAME##*-}"
   libs="$(builtin type -P "${CMD_NAME}-libs" || true)"
   cmdHelp="$(builtin type -P "${CMD_NAME}-help" || true)"
-  runHooks="${libs} runHooks"
-  executeRun="${libs} executeRun"
+  runHooks=("${libs}" runHooks)
+  executeRun=("${libs}" executeRun)
   [[ -z "${libs}" || -z "${cmdHelp}" ]] && {
     builtin echo "${CMD_NAME}: required component(s) missing" >&2
     exit 1
@@ -29,11 +29,20 @@ cmdExec() {
       builtin exec "${cmdHelp}" "${SUBCMD_NAME}"
       ;;
   esac
-  ${runHooks} "${SUBCMD_NAME}" pre "${@}"
-  ${runHooks} "${SUBCMD_NAME}-${1:-}" pre "${@}"
-  ${executeRun} "${@}"
-  ${runHooks} "${SUBCMD_NAME}" post "${@}"
-  ${runHooks} "${SUBCMD_NAME}-${1:-}" post "${@}"
+  runHooksIfPresent() {
+    declare EVENT
+    declare PHASE
+    EVENT="${1:-}"
+    PHASE="${2:-}"
+    shift 2 || true
+    [[ -d "${TEXENV_HOOKS}/${EVENT}/${PHASE}" ]] || return 0
+    "${runHooks[@]}" "${EVENT}" "${PHASE}" "${@}"
+  }
+  runHooksIfPresent "${SUBCMD_NAME}" pre "${@}"
+  runHooksIfPresent "${SUBCMD_NAME}-${1:-}" pre "${@}"
+  "${executeRun[@]}" "${@}"
+  runHooksIfPresent "${SUBCMD_NAME}" post "${@}"
+  runHooksIfPresent "${SUBCMD_NAME}-${1:-}" post "${@}"
 }
 
 cmdExec "${@}"

@@ -8,10 +8,12 @@ set -euo pipefail
 cmdGlobal() {
   declare VERSION
   declare SCRIPT_NAME
+  declare libs
   declare cmdHelp
   SCRIPT_NAME="${0##*/}"
+  libs="$(builtin type -P "texenv-libs" || true)"
   cmdHelp="$(builtin type -P "texenv-help" || true)"
-  [[ -z "${cmdHelp}" ]] && {
+  [[ -z "${libs}" || -z "${cmdHelp}" ]] && {
     builtin echo "${SCRIPT_NAME%%-*}: required component(s) missing" >&2
     exit 1
   }
@@ -23,10 +25,6 @@ cmdGlobal() {
       VERSION="${1:-}"
       ;;
   esac
-  [[ -d "${TEXENV_VERSIONS}/${VERSION}" ]] || {
-    builtin echo "${SCRIPT_NAME%%-*}: version ${VERSION} is not installed" >&2
-    exit 1
-  }
   [[ -z "${VERSION}" ]] && {
     if [[ -d "${TEXENV_VERSIONS}" ]]; then
       [[ -f "${TEXENV_ROOT}/${TEX_GLOBAL_VERSION_FILE}" ]] && {
@@ -36,12 +34,24 @@ cmdGlobal() {
         builtin echo "${SCRIPT_NAME%%-*}: no version set (use 'texenv global <version>')" >&2
         exit 1
       }
+      "${libs}" isSafeVersion "${VERSION}" || {
+        builtin echo "${SCRIPT_NAME%%-*}: invalid version identifier" >&2
+        exit 1
+      }
       builtin echo "${VERSION}"
       exit 0
     else
       builtin echo "${SCRIPT_NAME%%-*}: no version set (use 'texenv global <version>')" >&2
       exit 1
     fi
+  }
+  "${libs}" isSafeVersion "${VERSION}" || {
+    builtin echo "${SCRIPT_NAME%%-*}: invalid version identifier" >&2
+    exit 1
+  }
+  [[ -d "${TEXENV_VERSIONS}/${VERSION}" ]] || {
+    builtin echo "${SCRIPT_NAME%%-*}: version ${VERSION} is not installed" >&2
+    exit 1
   }
   {
     builtin echo "${VERSION}" > "${TEXENV_ROOT}/${TEX_GLOBAL_VERSION_FILE}"

@@ -7,7 +7,7 @@ set -euo pipefail
 # Display texenv environment information
 cmdEnv() {
   declare libs
-  declare kpsewhich
+  declare -a kpsewhich
   declare cmdHelp
   declare cmdRepo
   declare cmdVersion
@@ -19,7 +19,7 @@ cmdEnv() {
   cmdRepo="$(builtin type -P "texenv-repo" || true)"
   cmdVersion="$(builtin type -P "texenv-version" || true)"
   cmdVersions="$(builtin type -P "texenv-versions" || true)"
-  kpsewhich="${libs} executeRun kpsewhich"
+  kpsewhich=("${libs}" executeRun kpsewhich)
   [[ -z "${libs}" || -z "${cmdHelp}" || -z "${cmdRepo}" || -z "${cmdVersion}" || -z "${cmdVersions}" ]] && {
     builtin echo "${SCRIPT_NAME%%-*}: required component(s) missing" >&2
     exit 1
@@ -29,16 +29,19 @@ cmdEnv() {
       builtin exec "${cmdHelp}" "${SCRIPT_NAME##*-}"
       ;;
   esac
+  runKpsewhich() {
+    "${kpsewhich[@]}" "${@}"
+  }
   cat << EOF
 TinyTeX: $( ("${cmdVersion}" 2> /dev/null) || builtin echo "not set")
 TEXMF PATHS:
-  TEXHOME        = $( (${kpsewhich} -var-value=TEXMFHOME 2> /dev/null) || builtin echo "${TEXMF_HOME}")
-  TEXMFVAR       = $( (${kpsewhich} -var-value=TEXMFVAR 2> /dev/null) || builtin echo "not set")
-  TEXMFCONFIG    = $( (${kpsewhich} -var-value=TEXMFCONFIG 2> /dev/null) || builtin echo "not set")
-  TEXMFLOCAL     = $( (${kpsewhich} -var-value=TEXMFLOCAL 2> /dev/null) || builtin echo "not set")
-  TEXMFSYSVAR    = $( (${kpsewhich} -var-value=TEXMFSYSVAR 2> /dev/null) || builtin echo "not set")
-  TEXMFSYSCONFIG = $( (${kpsewhich} -var-value=TEXMFSYSCONFIG 2> /dev/null) || builtin echo "not set")
-  TEXMFDIST      = $( (${kpsewhich} -var-value=TEXMFDIST 2> /dev/null) || builtin echo "not set")
+  TEXHOME        = $(runKpsewhich -var-value=TEXMFHOME 2> /dev/null || builtin echo "${TEXMF_HOME}")
+  TEXMFVAR       = $(runKpsewhich -var-value=TEXMFVAR 2> /dev/null || builtin echo "not set")
+  TEXMFCONFIG    = $(runKpsewhich -var-value=TEXMFCONFIG 2> /dev/null || builtin echo "not set")
+  TEXMFLOCAL     = $(runKpsewhich -var-value=TEXMFLOCAL 2> /dev/null || builtin echo "not set")
+  TEXMFSYSVAR    = $(runKpsewhich -var-value=TEXMFSYSVAR 2> /dev/null || builtin echo "not set")
+  TEXMFSYSCONFIG = $(runKpsewhich -var-value=TEXMFSYSCONFIG 2> /dev/null || builtin echo "not set")
+  TEXMFDIST      = $(runKpsewhich -var-value=TEXMFDIST 2> /dev/null || builtin echo "not set")
 Active repositories:
   $(
     REPO="$("${cmdRepo}" -s 2> /dev/null || true)"

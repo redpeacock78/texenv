@@ -9,10 +9,12 @@ cmdWhich() {
   declare CMD_NAME
   declare CMD_PATH
   declare SCRIPT_NAME
+  declare libs
   declare cmdHelp
   SCRIPT_NAME="${0##*/}"
+  libs="$(builtin type -P "texenv-libs" || true)"
   cmdHelp="$(builtin type -P "texenv-help" || true)"
-  [[ -z "${cmdHelp}" ]] && {
+  [[ -z "${libs}" || -z "${cmdHelp}" ]] && {
     builtin echo "${SCRIPT_NAME%%-*}: required component(s) missing" >&2
     exit 1
   }
@@ -24,6 +26,10 @@ cmdWhich() {
   CMD_NAME="${1:-}"
   [[ -z "${CMD_NAME}" ]] && {
     builtin echo "${SCRIPT_NAME%%-*}: no command specified" >&2
+    exit 1
+  }
+  "${libs}" isSafeCommand "${CMD_NAME}" || {
+    builtin echo "${SCRIPT_NAME%%-*}: invalid command identifier" >&2
     exit 1
   }
   CMD_PATH="${TEXENV_SHIMS}/${CMD_NAME}"

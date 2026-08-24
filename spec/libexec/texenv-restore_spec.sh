@@ -33,12 +33,8 @@ Describe 'texenv-restore'
     export TLMGR_INSTALLED_FIXTURE
   }
 
-  set_global_version() {
-    echo "$1" > "${TEXENV_ROOT}/${TEX_GLOBAL_VERSION_FILE}"
-  }
-
   invoke() {
-    ( cd "${TEXENV_DIR}" && "${TEXENV_SPEC_BIN}/texenv-restore" "$@" )
+    invoke_in_dir "${TEXENV_SPEC_BIN}/texenv-restore" "$@"
   }
 
   It 'fails when no requirements file is present'
@@ -77,6 +73,16 @@ Describe 'texenv-restore'
     When call invoke
     The status should equal 1
     The stderr should include 'older than the required version'
+  End
+
+  It 'accepts a daily version when its year satisfies the lock header'
+    set_global_version daily-2026.08.23
+    texenv_make_version daily-2026.08.23
+    setup_installed pkgA
+    setup_lock_file 2025 pkgA pkgB
+    When call invoke
+    The status should equal 0
+    The line 2 of output should equal 'installing: pkgB'
   End
 
   It 'skips install and reports already-installed when no packages are missing'
@@ -118,5 +124,15 @@ Describe 'texenv-restore'
     The status should equal 0
     The output should include 'All required TeX packages are already installed.'
     The output should not include 'installing:'
+  End
+
+  It 'rejects option-like package names in requirements'
+    set_global_version 2025.01
+    setup_installed pkgA
+    setup_required_file --repository=evil
+    When call invoke
+    The status should equal 1
+    The output should include 'Restoring TeX packages from tex-require.txt...'
+    The stderr should include 'invalid package name in requirements'
   End
 End

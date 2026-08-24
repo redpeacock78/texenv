@@ -9,11 +9,13 @@ cmdLocal() {
   declare DIR
   declare VERSION
   declare SCRIPT_NAME
+  declare libs
   declare cmdHelp
   SCRIPT_NAME="${0##*/}"
   DIR="${TEXENV_DIR}"
+  libs="$(builtin type -P "texenv-libs" || true)"
   cmdHelp="$(builtin type -P "texenv-help" || true)"
-  [[ -z "${cmdHelp}" ]] && {
+  [[ -z "${libs}" || -z "${cmdHelp}" ]] && {
     builtin echo "${SCRIPT_NAME%%-*}: required component(s) missing" >&2
     exit 1
   }
@@ -25,10 +27,6 @@ cmdLocal() {
       VERSION="${1:-}"
       ;;
   esac
-  [[ -d "${TEXENV_VERSIONS}/${VERSION}" ]] || {
-    builtin echo "${SCRIPT_NAME%%-*}: version ${VERSION} is not installed" >&2
-    exit 1
-  }
   [[ -z "${VERSION}" ]] && {
     if [[ -d "${TEXENV_VERSIONS}" ]]; then
       [[ -f "${DIR}/${TEX_LOCAL_VERSION_FILE}" ]] && {
@@ -38,12 +36,24 @@ cmdLocal() {
         builtin echo "${SCRIPT_NAME%%-*}: no version set (use '${SCRIPT_NAME%%-*} local <version>')" >&2
         exit 1
       }
+      "${libs}" isSafeVersion "${VERSION}" || {
+        builtin echo "${SCRIPT_NAME%%-*}: invalid version identifier" >&2
+        exit 1
+      }
       builtin echo "${VERSION}"
       exit 0
     else
       builtin echo "${SCRIPT_NAME%%-*}: no version set (use '${SCRIPT_NAME%%-*} local <version>')" >&2
       exit 1
     fi
+  }
+  "${libs}" isSafeVersion "${VERSION}" || {
+    builtin echo "${SCRIPT_NAME%%-*}: invalid version identifier" >&2
+    exit 1
+  }
+  [[ -d "${TEXENV_VERSIONS}/${VERSION}" ]] || {
+    builtin echo "${SCRIPT_NAME%%-*}: version ${VERSION} is not installed" >&2
+    exit 1
   }
   {
     builtin echo "${VERSION}" > "${DIR}/${TEX_LOCAL_VERSION_FILE}"

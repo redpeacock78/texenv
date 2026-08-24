@@ -9,10 +9,12 @@ cmdWhence() {
   declare CMD_NAME
   declare RESULT
   declare SCRIPT_NAME
+  declare libs
   declare cmdHelp
   SCRIPT_NAME="${0##*/}"
+  libs="$(builtin type -P "texenv-libs" || true)"
   cmdHelp="$(builtin type -P "texenv-help" || true)"
-  [[ -z "${cmdHelp}" ]] && {
+  [[ -z "${libs}" || -z "${cmdHelp}" ]] && {
     builtin echo "${SCRIPT_NAME%%-*}: required component(s) missing" >&2
     exit 1
   }
@@ -26,15 +28,25 @@ cmdWhence() {
     builtin echo "${SCRIPT_NAME%%-*}: no command specified" >&2
     exit 1
   }
+  "${libs}" isSafeCommand "${CMD_NAME}" || {
+    builtin echo "${SCRIPT_NAME%%-*}: invalid command identifier" >&2
+    exit 1
+  }
   [[ ! -d "${TEXENV_VERSIONS}" ]] && {
     builtin echo "${SCRIPT_NAME%%-*}: no versions installed" >&2
     exit 1
   }
+  RESULT=""
   if [[ -f "${TEX_CMD_LIST_CACHE}" ]]; then
-    RESULT="$(grep "/${CMD_NAME}$" "${TEX_CMD_LIST_CACHE}")"
-  else
-    RESULT="$(find "${TEXENV_VERSIONS}" -path "*/bin/${TEXENV_PLATFORM}/${CMD_NAME}" ! -type d -exec bash -c 'for f in "${@}"; do [[ -x "${f}" ]] && builtin echo "${f}"; done' _ {} +)"
+    RESULT="$(while IFS= read -r CMD_PATH; do
+      if [[ -x "${CMD_PATH}" ]]; then
+        builtin printf '%s\n' "${CMD_PATH}"
+      fi
+    done < <(awk -F/ -v cmd="${CMD_NAME}" 'index($0, "/") && $NF == cmd {print}' "${TEX_CMD_LIST_CACHE}"))"
   fi
+  [[ -z "${RESULT}" ]] && {
+    RESULT="$(find "${TEXENV_VERSIONS}" -path "*/bin/${TEXENV_PLATFORM}/${CMD_NAME}" ! -type d -exec bash -c 'for f in "${@}"; do [[ -x "${f}" ]] && builtin echo "${f}"; done' _ {} +)"
+  }
   [[ -z "${RESULT}" ]] && {
     builtin echo "${SCRIPT_NAME%%-*}: command '${CMD_NAME}' not found" >&2
     exit 1
