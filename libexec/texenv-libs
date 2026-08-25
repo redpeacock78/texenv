@@ -20,6 +20,72 @@ shellQuote() {
   builtin printf '%q' "${1-}"
 }
 
+# Normalize TeX Live package names for portable requirements files.
+normalizePackageNames() {
+  # ponytail: keep the platform list local to avoid network-dependent tlmgr calls; update it when TeX Live adds a platform.
+  awk '
+    {
+      sub(/\r$/, "", $0)
+      sub(/^[[:space:]]+/, "", $0)
+      sub(/[[:space:]]+$/, "", $0)
+      if ($0 == "" || $0 ~ /^#/) next
+      sub(/\.(aarch64-linux|amd64-freebsd|amd64-netbsd|armhf-linux|i386-freebsd|i386-linux|i386-netbsd|universal-darwin|windows|x86_64-cygwin|x86_64-darwinlegacy|x86_64-linux|x86_64-linuxmusl)$/, "", $0)
+      if (!seen[$0]++) print
+    }
+  '
+}
+
+# Normalize TeX Live package revision rows to name<TAB>revision.
+normalizePackageRevisions() {
+  awk -F ',' '
+    {
+      sub(/\r$/, "", $0)
+      if (index($0, "\t")) {
+        split($0, fields, "\t")
+        name=fields[1]
+        revision=fields[2]
+      } else {
+        name=$1
+        revision=$2
+      }
+      sub(/^[[:space:]]+/, "", name)
+      sub(/[[:space:]]+$/, "", name)
+      sub(/^[[:space:]]+/, "", revision)
+      sub(/[[:space:]]+$/, "", revision)
+      if (name ~ /^[A-Za-z0-9][A-Za-z0-9._+-]*$/ && revision ~ /^[0-9]+$/ && name !~ /^00texlive\./) print name "\t" revision
+    }
+  '
+}
+
+sha512Stream() {
+  declare HASH_TOOL
+  declare OUTPUT
+  declare HASH
+  HASH_TOOL="$(builtin type -P sha512sum || true)"
+  if [[ -n "${HASH_TOOL}" ]]; then
+    OUTPUT="$("${HASH_TOOL}")" || return 1
+    read -r HASH _ <<< "${OUTPUT}"
+  else
+    HASH_TOOL="$(builtin type -P shasum || true)"
+    if [[ -n "${HASH_TOOL}" ]]; then
+      OUTPUT="$("${HASH_TOOL}" -a 512)" || return 1
+      read -r HASH _ <<< "${OUTPUT}"
+    else
+      HASH_TOOL="$(builtin type -P openssl || true)"
+      [[ -n "${HASH_TOOL}" ]] || return 1
+      OUTPUT="$("${HASH_TOOL}" dgst -sha512)" || return 1
+      HASH="${OUTPUT##*= }"
+    fi
+  fi
+  [[ "${HASH}" =~ ^[[:xdigit:]]{128}$ ]] || return 1
+  builtin printf '%s\n' "${HASH,,}"
+}
+
+sha512File() {
+  [[ -f "${1:-}" ]] || return 1
+  sha512Stream < "${1}"
+}
+
 requireTlmgrPerl() {
   declare CMD_NAME
   declare PERL_PATH
@@ -130,7 +196,7 @@ runHooks() {
   HOOK_DIR="${TEXENV_HOOKS}/${EVENT}/${PHASE}"
   [[ -d "${HOOK_DIR}" ]] || return 0
   while read -r HOOK_SCRIPT; do
-    [[ -x "${HOOK_SCRIPT}" ]] && "${HOOK_SCRIPT}" "${ARGS[@]:-}"
+    [[ -x "${HOOK_SCRIPT}" ]] && "${HOOK_SCRIPT}" "${ARGS[@]:-}" >&2
   done < <(find "${HOOK_DIR}" -maxdepth 1 -type f | sort)
 }
 
@@ -158,6 +224,22 @@ main() {
     shellQuote)
       shift || true
       shellQuote "${@}"
+      ;;
+    normalizePackageNames)
+      shift || true
+      normalizePackageNames "${@}"
+      ;;
+    normalizePackageRevisions)
+      shift || true
+      normalizePackageRevisions "${@}"
+      ;;
+    sha512Stream)
+      shift || true
+      sha512Stream "${@}"
+      ;;
+    sha512File)
+      shift || true
+      sha512File "${@}"
       ;;
   esac
 }

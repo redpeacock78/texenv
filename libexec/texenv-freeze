@@ -6,43 +6,159 @@ set -euo pipefail
 
 # State used by the EXIT trap after cmdFreeze returns.
 declare TMP_FILE
+declare PACKAGE_FILE
+declare REMOTE_FILE
+declare REMOTE_LOCK_FILE
+declare ARCHIVE_ENTRIES_FILE
+declare ARCHIVE_DIR
 
 # Freeze TeX packages to requirements file
 cmdFreeze() {
   declare FILE
   declare TEX_VERSION
+  declare LOCK_REPOSITORY
+  declare LOCK_REPOSITORY_MANIFEST
+  declare LOCK_FLAG
+  declare ARCHIVE_FLAG
+  declare PACKAGE
+  declare REVISION
+  declare ARCHIVE_FILE
+  declare CHECKSUM
   declare SCRIPT_NAME
   declare cmdHelp
   declare cmdExec
+  declare cmdLibs
   declare cmdVersion
   SCRIPT_NAME="${0##*/}"
   cmdHelp="$(builtin type -P "texenv-help" || true)"
   cmdExec="$(builtin type -P "texenv-exec" || true)"
+  cmdLibs="$(builtin type -P "texenv-libs" || true)"
   cmdVersion="$(builtin type -P "texenv-version" || true)"
-  [[ -z "${cmdHelp}" || -z "${cmdExec}" || -z "${cmdVersion}" ]] && {
+  [[ -z "${cmdHelp}" || -z "${cmdExec}" || -z "${cmdLibs}" || -z "${cmdVersion}" ]] && {
     builtin echo "${SCRIPT_NAME%%-*}: required component(s) missing" >&2
     exit 1
   }
-  "${cmdVersion}" > /dev/null
-  FILE="${TEX_REQUIREMENTS_FILE}"
-  case "${1:-}" in
-    -l | --lock)
-      FILE="${TEX_REQUIREMENTS_LOCK_FILE}"
-      TEX_VERSION="$("${cmdExec}" tlmgr --version | awk 'END{print $5}')"
-      ;;
-    -h | --help)
-      builtin exec "${cmdHelp}" "${SCRIPT_NAME##*-}"
-      ;;
-  esac
-  TMP_FILE="$(mktemp "${FILE}.XXXXXX")"
   cleanup() {
-    [[ -n "${TMP_FILE:-}" && -f "${TMP_FILE}" ]] && rm -f "${TMP_FILE:?}" || true
+    if [[ -n "${TMP_FILE:-}" && -f "${TMP_FILE}" ]]; then
+      rm -f "${TMP_FILE:?}" || true
+    fi
+    if [[ -n "${PACKAGE_FILE:-}" && -f "${PACKAGE_FILE}" ]]; then
+      rm -f "${PACKAGE_FILE:?}" || true
+    fi
+    if [[ -n "${REMOTE_FILE:-}" && -f "${REMOTE_FILE}" ]]; then
+      rm -f "${REMOTE_FILE:?}" || true
+    fi
+    if [[ -n "${REMOTE_LOCK_FILE:-}" && -f "${REMOTE_LOCK_FILE}" ]]; then
+      rm -f "${REMOTE_LOCK_FILE:?}" || true
+    fi
+    if [[ -n "${ARCHIVE_ENTRIES_FILE:-}" && -f "${ARCHIVE_ENTRIES_FILE}" ]]; then
+      rm -f "${ARCHIVE_ENTRIES_FILE:?}" || true
+    fi
   }
   trap cleanup EXIT INT TERM
+  "${cmdVersion}" > /dev/null
+  FILE="${TEX_REQUIREMENTS_FILE}"
+  while [[ "${#}" -gt 0 ]]; do
+    case "${1}" in
+      -l | --lock)
+        LOCK_FLAG=1
+        ;;
+      -a | --archive)
+        ARCHIVE_FLAG=1
+        ;;
+      -h | --help)
+        builtin exec "${cmdHelp}" "${SCRIPT_NAME##*-}"
+        ;;
+      *)
+        builtin echo "${SCRIPT_NAME%%-*}: unknown option '${1}'" >&2
+        exit 1
+        ;;
+    esac
+    shift
+  done
+  [[ -n "${ARCHIVE_FLAG:-}" && -z "${LOCK_FLAG:-}" ]] && {
+    builtin echo "${SCRIPT_NAME%%-*}: --archive requires --lock" >&2
+    exit 1
+  }
+  if [[ -n "${LOCK_FLAG:-}" ]]; then
+    FILE="${TEX_REQUIREMENTS_LOCK_FILE}"
+    if ! TEX_VERSION="$("${cmdExec}" tlmgr --version | awk 'END{print $5}')" || [[ -z "${TEX_VERSION}" ]]; then
+      builtin echo "${SCRIPT_NAME%%-*}: failed to freeze TeX packages" >&2
+      exit 1
+    fi
+    if ! LOCK_REPOSITORY="$("${cmdLibs}" executeRun tlmgr option repository | awk -F ': ' 'NF > 1 {print $2; exit}')" || [[ -z "${LOCK_REPOSITORY}" ]]; then
+      builtin echo "${SCRIPT_NAME%%-*}: failed to freeze TeX packages" >&2
+      exit 1
+    fi
+    if ! PACKAGE_FILE="$(mktemp "${FILE}.packages.XXXXXX")"; then
+      builtin echo "${SCRIPT_NAME%%-*}: failed to freeze TeX packages" >&2
+      exit 1
+    fi
+    if ! "${cmdExec}" tlmgr info --only-installed --data name,localrev | "${cmdLibs}" normalizePackageRevisions > "${PACKAGE_FILE}"; then
+      builtin echo "${SCRIPT_NAME%%-*}: failed to freeze TeX packages" >&2
+      exit 1
+    fi
+    if ! REMOTE_FILE="$(mktemp "${FILE}.remote.XXXXXX")" || ! REMOTE_LOCK_FILE="$(mktemp "${FILE}.remote-lock.XXXXXX")"; then
+      builtin echo "${SCRIPT_NAME%%-*}: failed to freeze TeX packages" >&2
+      exit 1
+    fi
+    if ! "${cmdExec}" tlmgr info --only-remote --data name,remoterev | "${cmdLibs}" normalizePackageRevisions > "${REMOTE_FILE}"; then
+      builtin echo "${SCRIPT_NAME%%-*}: failed to freeze TeX packages" >&2
+      exit 1
+    fi
+    if ! awk -F '\t' 'NR == FNR {wanted[$1] = 1; next} wanted[$1] {print $1 "\t" $2}' "${PACKAGE_FILE}" "${REMOTE_FILE}" | LC_ALL=C sort > "${REMOTE_LOCK_FILE}"; then
+      builtin echo "${SCRIPT_NAME%%-*}: failed to freeze TeX packages" >&2
+      exit 1
+    fi
+    if ! LOCK_REPOSITORY_MANIFEST="$("${cmdLibs}" sha512File "${REMOTE_LOCK_FILE}")"; then
+      builtin echo "${SCRIPT_NAME%%-*}: failed to freeze TeX packages" >&2
+      exit 1
+    fi
+    if ! awk -F '\t' 'NR == FNR {remote[$1] = $2; next} !($1 in remote) || remote[$1] != $2 {exit 1}' "${REMOTE_FILE}" "${PACKAGE_FILE}" && [[ -z "${ARCHIVE_FLAG:-}" ]]; then
+      builtin echo "${SCRIPT_NAME%%-*}: repository package revisions do not match local packages" >&2
+      exit 1
+    fi
+  fi
+  if [[ -n "${ARCHIVE_FLAG:-}" ]]; then
+    ARCHIVE_DIR="${TEXENV_CACHE_DIR}"
+    mkdir -p "${ARCHIVE_DIR}"
+    if ! "${cmdExec}" tlmgr backup --all --backupdir "${ARCHIVE_DIR}" > /dev/null; then
+      builtin echo "${SCRIPT_NAME%%-*}: failed to freeze TeX package archives" >&2
+      exit 1
+    fi
+    if ! ARCHIVE_ENTRIES_FILE="$(mktemp "${FILE}.archives.XXXXXX")"; then
+      builtin echo "${SCRIPT_NAME%%-*}: failed to freeze TeX package archives" >&2
+      exit 1
+    fi
+    while IFS=$'\t' read -r PACKAGE REVISION; do
+      [[ -z "${PACKAGE}" ]] && continue
+      ARCHIVE_FILE="$(find "${ARCHIVE_DIR}" -maxdepth 1 -type f -name "${PACKAGE}.r${REVISION}.tar.*" -print -quit)"
+      if [[ -n "${ARCHIVE_FILE}" ]]; then
+        CHECKSUM="$("${cmdLibs}" sha512File "${ARCHIVE_FILE}")" || {
+          builtin echo "${SCRIPT_NAME%%-*}: failed to checksum archive for ${PACKAGE}" >&2
+          exit 1
+        }
+        builtin printf '%s\t%s\tsha512:%s\n' "${PACKAGE}" "${REVISION}" "${CHECKSUM}" >> "${ARCHIVE_ENTRIES_FILE}"
+      else
+        builtin echo "${SCRIPT_NAME%%-*}: archive is missing for ${PACKAGE}" >&2
+        exit 1
+      fi
+    done < "${PACKAGE_FILE}"
+    mv "${ARCHIVE_ENTRIES_FILE}" "${PACKAGE_FILE}"
+  fi
+  TMP_FILE="$(mktemp "${FILE}.XXXXXX")"
   builtin echo "Freezing TeX packages to ${FILE}..."
   {
+    [[ -z "${LOCK_FLAG:-}" ]] || builtin printf '# texenv-lock: 2\n'
     [[ -z "${TEX_VERSION:-}" ]] || builtin printf '# TeX Live: %s\n' "${TEX_VERSION}"
-    "${cmdExec}" tlmgr info --only-installed --data name
+    [[ -z "${LOCK_FLAG:-}" ]] || builtin printf '# Platform: %s\n' "${TEXENV_PLATFORM}"
+    [[ -z "${LOCK_REPOSITORY:-}" ]] || builtin printf '# Repository: %s\n' "${LOCK_REPOSITORY}"
+    [[ -z "${LOCK_REPOSITORY_MANIFEST:-}" ]] || builtin printf '# Repository Manifest: sha512:%s\n' "${LOCK_REPOSITORY_MANIFEST}"
+    if [[ -n "${LOCK_FLAG:-}" ]]; then
+      cat "${PACKAGE_FILE}"
+    else
+      "${cmdExec}" tlmgr info --only-installed --data name | "${cmdLibs}" normalizePackageNames
+    fi
   } > "${TMP_FILE}" || {
     builtin echo "${SCRIPT_NAME%%-*}: failed to freeze TeX packages" >&2
     exit 1
@@ -51,6 +167,7 @@ cmdFreeze() {
     builtin echo "${SCRIPT_NAME%%-*}: failed to freeze TeX packages" >&2
     exit 1
   }
+  cleanup
   trap - EXIT INT TERM
 }
 

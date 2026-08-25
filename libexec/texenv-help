@@ -5,11 +5,12 @@ declare -r TEXENV_DEBUG
 set -euo pipefail
 
 declare -ar HELP_COMMANDS=(
-  commands env exec freeze global init install local rehash repo restore root shell
+  commands doctor env exec freeze global init install local rehash repo restore root shell
   shims uninstall version versions whence where which
 )
 declare -A HELP_USAGE HELP_DESC HELP_OPTIONS HELP_EXTRA
 HELP_USAGE[commands]='commands [options]'
+HELP_USAGE[doctor]='doctor [options]'
 HELP_USAGE[env]='env [options]'
 HELP_USAGE[exec]='exec <cmd> [args]'
 HELP_USAGE[freeze]='freeze [options]'
@@ -31,6 +32,7 @@ HELP_USAGE[where]='where <cmd>'
 HELP_USAGE[which]='which <cmd>'
 
 HELP_DESC[commands]='List available commands'
+HELP_DESC[doctor]='Diagnose the TeX environment'
 HELP_DESC[env]='Display @program@ environment information'
 HELP_DESC[exec]='Execute command in current TeX Live version'
 HELP_DESC[freeze]='Freeze installed TeX packages to requirements file'
@@ -52,16 +54,17 @@ HELP_DESC[where]='Show path to command in current TeX Live version'
 HELP_DESC[which]='Show path to shim for specified command'
 
 HELP_OPTIONS[commands]='  -h, --help  Show this help message'
+HELP_OPTIONS[doctor]='  -h, --help  Show this help message'
 HELP_OPTIONS[env]='  -h, --help  Show this help message'
 HELP_OPTIONS[exec]='  -h, --help  Show this help message'
-HELP_OPTIONS[freeze]=$'  -l, --lock  Freeze to lock file with TeX Live version\n  -h, --help  Show this help message'
+HELP_OPTIONS[freeze]=$'  -l, --lock     Freeze to lock file with TeX Live version\n  -a, --archive  Include package backup archives\n  -h, --help     Show this help message'
 HELP_OPTIONS[global]='  -h, --help  Show this help message'
 HELP_OPTIONS[init]=$'  -           Output shell commands to set up @program@ environment\n  -h, --help  Show this help message'
 HELP_OPTIONS[install]=$'  -l, --list  List available versions\n  -f, --force Force reinstall if version is already installed\n  -h, --help  Show this help message'
 HELP_OPTIONS[local]='  -h, --help  Show this help message'
 HELP_OPTIONS[rehash]=$'  -f, --force  Force rebuild\n  -h, --help   Show this help message'
 HELP_OPTIONS[repo]=$'  -s, --show           Show current tlmgr repository\n  -m, --mirror <repo>  Set tlmgr repository to specified mirror\n  -r, --reset          Reset tlmgr repository to default\n  -h, --help           Show this help message'
-HELP_OPTIONS[restore]='  -h, --help  Show this help message'
+HELP_OPTIONS[restore]=$'  -n, --dry-run  Show what would be installed\n  -h, --help     Show this help message'
 HELP_OPTIONS[root]='  -h, --help  Show this help message'
 HELP_OPTIONS[shell]='  -h, --help  Show this help message'
 HELP_OPTIONS[shims]='  -h, --help  Show this help message'
@@ -132,7 +135,7 @@ main() {
   declare CMD
   CMD="${1:-}"
   case "${CMD}" in
-    commands | env | exec | freeze | global | init | install | local | rehash | repo | restore | root | shell | shims | uninstall | version | versions | whence | where | which)
+    commands | doctor | env | exec | freeze | global | init | install | local | rehash | repo | restore | root | shell | shims | uninstall | version | versions | whence | where | which)
       if [[ "${CMD}" == shell ]]; then
         helpPrint "${CMD}" shell "${@:2}"
       else

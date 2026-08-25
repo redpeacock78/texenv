@@ -92,7 +92,9 @@ shims/
 config/
 texmf/
 version
+.texenv/
 
+# Generated when texenv is exercised from this repository.
 .tex-version
 tex-require.txt
 tex-require.lock

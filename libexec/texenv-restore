@@ -4,18 +4,44 @@ declare -r TEXENV_DEBUG
 [[ "${TEXENV_DEBUG}" == 1 ]] && set -x
 set -euo pipefail
 
+# State used by the EXIT trap after cmdRestore returns.
+declare INSTALLED_FILE
+declare REQUIREMENTS_FILE
+
 # Restore TeX packages from requirements file
 cmdRestore() {
   declare FILE_NAME
   declare TEX_VERSION
   declare -A TEX_VERSION_INFO
   declare LOCK_TEX_VERSION
+  declare LOCK_FORMAT
+  declare LOCK_PLATFORM
+  declare LOCK_REPOSITORY
+  declare LOCK_REPOSITORY_HEADER
+  declare LOCK_REPOSITORY_MANIFEST
+  declare ARCHIVE_MODE
   declare CURRENT_TEX_YEAR
   declare LOCK_TEX_YEAR
+  declare CURRENT_REPOSITORY
   declare LOCK_FLAG
+  declare DRY_RUN
   declare REQUIRE_LIST
-  declare -a REQUIRE_PACKAGES
   declare PACKAGE
+  declare REQUIRED_REVISION
+  declare ARCHIVE_CHECKSUM
+  declare ARCHIVE_FILE
+  declare ARCHIVE_DIR
+  declare ACTUAL_CHECKSUM
+  declare INSTALLED_REVISION
+  declare REMOTE_FILE
+  declare REMOTE_LOCK_FILE
+  declare VERIFY_FILE
+  declare -a REQUIRE_PACKAGES
+  declare -a ARCHIVE_PACKAGES
+  declare -A REQUIRED_REVISIONS
+  declare -A REQUIRED_CHECKSUMS
+  REQUIRE_PACKAGES=()
+  ARCHIVE_PACKAGES=()
   declare GREP_RC
   declare SCRIPT_NAME
   declare libs
@@ -30,8 +56,17 @@ cmdRestore() {
     exit 1
   }
   case "${1:-}" in
+    -n | --dry-run)
+      DRY_RUN=1
+      ;;
     -h | --help)
       builtin exec "${cmdHelp}" "${SCRIPT_NAME##*-}"
+      ;;
+    "")
+      ;;
+    *)
+      builtin echo "${SCRIPT_NAME%%-*}: unknown option '${1}'" >&2
+      exit 1
       ;;
   esac
   if [[ -f "${TEX_REQUIREMENTS_LOCK_FILE}" ]]; then
@@ -43,12 +78,59 @@ cmdRestore() {
     builtin echo "${SCRIPT_NAME%%-*}: no requirements file found" >&2
     exit 1
   fi
+  ARCHIVE_DIR="${TEXENV_CACHE_DIR}"
+  cleanup() {
+    if [[ -n "${INSTALLED_FILE:-}" && -f "${INSTALLED_FILE}" ]]; then
+      rm -f "${INSTALLED_FILE}" || true
+    fi
+    if [[ -n "${REQUIREMENTS_FILE:-}" && -f "${REQUIREMENTS_FILE}" ]]; then
+      rm -f "${REQUIREMENTS_FILE}" || true
+    fi
+    if [[ -n "${REMOTE_FILE:-}" && -f "${REMOTE_FILE}" ]]; then
+      rm -f "${REMOTE_FILE}" || true
+    fi
+    if [[ -n "${REMOTE_LOCK_FILE:-}" && -f "${REMOTE_LOCK_FILE}" ]]; then
+      rm -f "${REMOTE_LOCK_FILE}" || true
+    fi
+    if [[ -n "${VERIFY_FILE:-}" && -f "${VERIFY_FILE}" ]]; then
+      rm -f "${VERIFY_FILE}" || true
+    fi
+  }
+  trap cleanup EXIT INT TERM
   while IFS=': ' read -r KEY VALUE; do
     [[ -n "${KEY}" && -n "${VALUE}" ]] && TEX_VERSION_INFO["${KEY}"]="${VALUE}"
   done < <("${libs}" resolveVersion || true)
   TEX_VERSION="${TEX_VERSION_INFO["TinyTeX-Version"]:-}"
   if [[ -n "${LOCK_FLAG:-}" ]]; then
-    LOCK_TEX_VERSION="$(awk -F ": " 'NR==1{print $2}' "${FILE_NAME}")"
+    LOCK_FORMAT="$(awk 'NR == 1 && $0 == "# texenv-lock: 2" {print 2; exit}' "${FILE_NAME}")"
+    LOCK_TEX_VERSION="$(awk -F ': ' '$1 == "# TeX Live" {print $2; exit}' "${FILE_NAME}")"
+    LOCK_REPOSITORY_HEADER="$(awk '/^# Repository:/ {print; exit}' "${FILE_NAME}")"
+    LOCK_REPOSITORY="$(awk -F ': ' '$1 == "# Repository" {print $2; exit}' "${FILE_NAME}")"
+    LOCK_REPOSITORY_MANIFEST="$(awk -F ': ' '$1 == "# Repository Manifest" {print $2; exit}' "${FILE_NAME}")"
+    ARCHIVE_MODE="$(awk -F '\t' '
+      BEGIN {entries = 0; complete = 1}
+      $0 !~ /^#/ && NF >= 2 {entries = 1; if (NF < 3 || $3 == "-") complete = 0}
+      END {print (entries && complete) ? 1 : 0}
+    ' "${FILE_NAME}")"
+    [[ -n "${LOCK_REPOSITORY_HEADER}" && -z "${LOCK_REPOSITORY}" ]] && {
+      builtin echo "${SCRIPT_NAME%%-*}: invalid repository in lock file" >&2
+      exit 1
+    }
+    if [[ "${LOCK_FORMAT:-}" == 2 ]]; then
+      [[ -n "${LOCK_REPOSITORY_HEADER}" ]] || {
+        builtin echo "${SCRIPT_NAME%%-*}: invalid repository in lock file" >&2
+        exit 1
+      }
+      LOCK_PLATFORM="$(awk -F ': ' '$1 == "# Platform" {print $2; exit}' "${FILE_NAME}")"
+      [[ -n "${LOCK_PLATFORM}" ]] || {
+        builtin echo "${SCRIPT_NAME%%-*}: invalid platform in lock file" >&2
+        exit 1
+      }
+      [[ "${TEXENV_PLATFORM}" == "${LOCK_PLATFORM}" ]] || {
+        builtin echo "${SCRIPT_NAME%%-*}: platform does not match lock file" >&2
+        exit 1
+      }
+    fi
     if [[ "${TEX_VERSION}" =~ ^daily-([0-9]{4})\. ]]; then
       CURRENT_TEX_YEAR="${BASH_REMATCH[1]}"
     else
@@ -59,27 +141,181 @@ cmdRestore() {
       builtin echo "${SCRIPT_NAME%%-*}: invalid TeX Live version in lock file" >&2
       exit 1
     }
-    ((10#${CURRENT_TEX_YEAR} < 10#${LOCK_TEX_YEAR})) && {
-      builtin echo "${SCRIPT_NAME%%-*}: TeX Live version ${CURRENT_TEX_YEAR} is older than the required version ${LOCK_TEX_YEAR}" >&2
-      exit 1
-    }
+    if [[ "${LOCK_FORMAT:-}" == 2 ]]; then
+      ((10#${CURRENT_TEX_YEAR} != 10#${LOCK_TEX_YEAR})) && {
+        builtin echo "${SCRIPT_NAME%%-*}: TeX Live version ${CURRENT_TEX_YEAR} does not match the required version ${LOCK_TEX_YEAR}" >&2
+        exit 1
+      }
+    else
+      ((10#${CURRENT_TEX_YEAR} < 10#${LOCK_TEX_YEAR})) && {
+        builtin echo "${SCRIPT_NAME%%-*}: TeX Live version ${CURRENT_TEX_YEAR} is older than the required version ${LOCK_TEX_YEAR}" >&2
+        exit 1
+      }
+    fi
+    if [[ -n "${LOCK_REPOSITORY_HEADER}" && "${ARCHIVE_MODE:-0}" != 1 ]]; then
+      if ! CURRENT_REPOSITORY="$("${libs}" executeRun tlmgr option repository | awk -F ': ' 'NF > 1 {print $2; exit}')" || [[ -z "${CURRENT_REPOSITORY}" ]]; then
+        builtin echo "${SCRIPT_NAME%%-*}: failed to read current TeX Live repository" >&2
+        exit 1
+      fi
+      [[ "${CURRENT_REPOSITORY}" == "${LOCK_REPOSITORY}" ]] || {
+        builtin echo "${SCRIPT_NAME%%-*}: repository does not match lock file" >&2
+        exit 1
+      }
+      if [[ -n "${LOCK_REPOSITORY_MANIFEST}" ]]; then
+        REMOTE_FILE="$(mktemp "${TEXENV_ROOT}/.texenv-restore-remote.XXXXXX")"
+        REMOTE_LOCK_FILE="$(mktemp "${TEXENV_ROOT}/.texenv-restore-remote-lock.XXXXXX")"
+        if ! "${libs}" executeRun tlmgr info --only-remote --data name,remoterev | "${libs}" normalizePackageRevisions > "${REMOTE_FILE}"; then
+          builtin echo "${SCRIPT_NAME%%-*}: failed to read TeX Live repository packages" >&2
+          exit 1
+        fi
+        if ! awk -F '\t' 'NR == FNR {if ($0 !~ /^#/ && NF >= 2) wanted[$1] = 1; next} wanted[$1] {print $1 "\t" $2}' "${FILE_NAME}" "${REMOTE_FILE}" | LC_ALL=C sort > "${REMOTE_LOCK_FILE}"; then
+          builtin echo "${SCRIPT_NAME%%-*}: failed to read TeX Live repository packages" >&2
+          exit 1
+        fi
+        if [[ "sha512:$(${libs} sha512File "${REMOTE_LOCK_FILE}")" != "${LOCK_REPOSITORY_MANIFEST}" ]]; then
+          builtin echo "${SCRIPT_NAME%%-*}: repository manifest does not match lock file" >&2
+          exit 1
+        fi
+        if ! awk -F '\t' 'NR == FNR {remote[$1] = $2; next} $0 !~ /^#/ && NF >= 2 && (!($1 in remote) || remote[$1] != $2) && (NF < 3 || $3 == "-") {exit 1}' "${REMOTE_FILE}" "${FILE_NAME}"; then
+          builtin echo "${SCRIPT_NAME%%-*}: repository package revisions do not match lock file" >&2
+          exit 1
+        fi
+      fi
+    fi
   fi
+  INSTALLED_FILE="$(mktemp "${TEXENV_ROOT}/.texenv-restore-installed.XXXXXX")"
+  REQUIREMENTS_FILE="$(mktemp "${TEXENV_ROOT}/.texenv-restore-required.XXXXXX")"
   {
     builtin echo "Restoring TeX packages from ${FILE_NAME}..."
-    REQUIRE_LIST="$(grep -vxFf <("${cmdExec[@]}" tlmgr info --only-installed --data name) <([[ -n "${LOCK_FLAG:-}" ]] && awk 'NR>1' < "${FILE_NAME}" || cat "${FILE_NAME}"))" || { GREP_RC=$?; [[ ${GREP_RC} -eq 1 ]] || return ${GREP_RC}; REQUIRE_LIST=""; }
-    [[ -z "${REQUIRE_LIST}" ]] && {
+    if [[ "${LOCK_FORMAT:-}" == 2 ]]; then
+      if ! "${cmdExec[@]}" tlmgr info --only-installed --data name,localrev | "${libs}" normalizePackageRevisions > "${INSTALLED_FILE}"; then
+        builtin echo "${SCRIPT_NAME%%-*}: failed to read installed TeX packages" >&2
+        exit 1
+      fi
+    elif ! "${cmdExec[@]}" tlmgr info --only-installed --data name | "${libs}" normalizePackageNames > "${INSTALLED_FILE}"; then
+      builtin echo "${SCRIPT_NAME%%-*}: failed to read installed TeX packages" >&2
+      exit 1
+    fi
+    if [[ -n "${LOCK_FLAG:-}" ]]; then
+      if [[ "${LOCK_FORMAT:-}" == 2 ]]; then
+        if ! awk -F '\t' 'NR > 1 && $0 !~ /^#/ && NF >= 2 {print $1 "\t" $2 "\t" (NF >= 3 ? $3 : "-")}' "${FILE_NAME}" > "${REQUIREMENTS_FILE}"; then
+          builtin echo "${SCRIPT_NAME%%-*}: failed to read requirements file" >&2
+          exit 1
+        fi
+      elif ! awk 'NR > 1 && $0 !~ /^#/ {print}' "${FILE_NAME}" | "${libs}" normalizePackageNames > "${REQUIREMENTS_FILE}"; then
+        builtin echo "${SCRIPT_NAME%%-*}: failed to read requirements file" >&2
+        exit 1
+      fi
+    else
+      if ! "${libs}" normalizePackageNames < "${FILE_NAME}" > "${REQUIREMENTS_FILE}"; then
+        builtin echo "${SCRIPT_NAME%%-*}: failed to read requirements file" >&2
+        exit 1
+      fi
+    fi
+    if [[ "${LOCK_FORMAT:-}" == 2 ]]; then
+      while IFS=$'\t' read -r PACKAGE REQUIRED_REVISION ARCHIVE_CHECKSUM; do
+        [[ -z "${PACKAGE}" ]] && continue
+        [[ "${PACKAGE}" =~ ^[A-Za-z0-9][A-Za-z0-9._+-]*$ ]] || {
+          builtin echo "${SCRIPT_NAME%%-*}: invalid package name in lock file: ${PACKAGE}" >&2
+          exit 1
+        }
+        [[ "${REQUIRED_REVISION}" =~ ^[0-9]+$ ]] || {
+          builtin echo "${SCRIPT_NAME%%-*}: invalid package revision in lock file: ${PACKAGE}" >&2
+          exit 1
+        }
+        ARCHIVE_CHECKSUM="${ARCHIVE_CHECKSUM:--}"
+        if [[ "${ARCHIVE_CHECKSUM}" != "-" ]]; then
+          [[ "${ARCHIVE_CHECKSUM}" =~ ^sha512:[[:xdigit:]]{128}$ ]] || {
+            builtin echo "${SCRIPT_NAME%%-*}: invalid archive checksum in lock file: ${PACKAGE}" >&2
+            exit 1
+          }
+          ARCHIVE_FILE="$(find "${ARCHIVE_DIR}" -maxdepth 1 -type f -name "${PACKAGE}.r${REQUIRED_REVISION}.tar.*" -print -quit)"
+          [[ -n "${ARCHIVE_FILE}" ]] || {
+            builtin echo "${SCRIPT_NAME%%-*}: archive is missing for ${PACKAGE}" >&2
+            exit 1
+          }
+          ACTUAL_CHECKSUM="$("${libs}" sha512File "${ARCHIVE_FILE}")" || {
+            builtin echo "${SCRIPT_NAME%%-*}: failed to checksum archive for ${PACKAGE}" >&2
+            exit 1
+          }
+          [[ "sha512:${ACTUAL_CHECKSUM}" == "${ARCHIVE_CHECKSUM}" ]] || {
+            builtin echo "${SCRIPT_NAME%%-*}: archive checksum does not match lock file: ${PACKAGE}" >&2
+            exit 1
+          }
+        fi
+        REQUIRED_REVISIONS["${PACKAGE}"]="${REQUIRED_REVISION}"
+        REQUIRED_CHECKSUMS["${PACKAGE}"]="${ARCHIVE_CHECKSUM}"
+        INSTALLED_REVISION="$(awk -F '\t' -v package="${PACKAGE}" '$1 == package {print $2; exit}' "${INSTALLED_FILE}")"
+        if [[ -n "${INSTALLED_REVISION}" && "${INSTALLED_REVISION}" != "${REQUIRED_REVISION}" ]]; then
+          if [[ "${ARCHIVE_CHECKSUM}" == "-" ]]; then
+            builtin echo "${SCRIPT_NAME%%-*}: package revision does not match lock file: ${PACKAGE}" >&2
+            exit 1
+          fi
+          ARCHIVE_PACKAGES+=("${PACKAGE}")
+        fi
+        if [[ -z "${INSTALLED_REVISION}" && "${ARCHIVE_CHECKSUM}" != "-" ]]; then
+          ARCHIVE_PACKAGES+=("${PACKAGE}")
+        fi
+      done < "${REQUIREMENTS_FILE}"
+      REQUIRE_LIST="$(awk -F '\t' 'NR == FNR {installed[$1] = 1; next} !installed[$1] {print $1}' "${INSTALLED_FILE}" "${REQUIREMENTS_FILE}")"
+      while IFS= read -r PACKAGE; do
+        [[ -z "${PACKAGE}" ]] && continue
+        if [[ "${REQUIRED_CHECKSUMS["${PACKAGE}"]:-}" != "-" ]]; then
+          [[ " ${ARCHIVE_PACKAGES[*]} " == *" ${PACKAGE} "* ]] || ARCHIVE_PACKAGES+=("${PACKAGE}")
+        else
+          REQUIRE_PACKAGES+=("${PACKAGE}")
+        fi
+      done <<< "${REQUIRE_LIST}"
+    else
+      REQUIRE_LIST="$(grep -vxFf "${INSTALLED_FILE}" "${REQUIREMENTS_FILE}")" || { GREP_RC=$?; [[ ${GREP_RC} -eq 1 ]] || return ${GREP_RC}; REQUIRE_LIST=""; }
+      while IFS= read -r PACKAGE; do
+        [[ -z "${PACKAGE}" ]] && continue
+        [[ "${PACKAGE}" =~ ^[A-Za-z0-9][A-Za-z0-9._+-]*$ ]] || {
+          builtin echo "${SCRIPT_NAME%%-*}: invalid package name in requirements" >&2
+          exit 1
+        }
+        REQUIRE_PACKAGES+=("${PACKAGE}")
+      done <<< "${REQUIRE_LIST}"
+    fi
+    [[ "${#ARCHIVE_PACKAGES[@]}" -eq 0 && "${#REQUIRE_PACKAGES[@]}" -eq 0 ]] && {
       builtin echo "All required TeX packages are already installed."
       exit 0
     }
-    while IFS= read -r PACKAGE; do
-      [[ -z "${PACKAGE}" ]] && continue
-      [[ "${PACKAGE}" =~ ^[A-Za-z0-9][A-Za-z0-9._+-]*$ ]] || {
-        builtin echo "${SCRIPT_NAME%%-*}: invalid package name in requirements" >&2
-        exit 1
+    if [[ "${LOCK_FORMAT:-}" == 2 ]]; then
+      for PACKAGE in "${ARCHIVE_PACKAGES[@]}"; do
+        if [[ -n "${DRY_RUN:-}" ]]; then
+          "${cmdExec[@]}" tlmgr restore --dry-run --backupdir "${ARCHIVE_DIR}" "${PACKAGE}" "${REQUIRED_REVISIONS[${PACKAGE}]}"
+        else
+          "${cmdExec[@]}" tlmgr restore --backupdir "${ARCHIVE_DIR}" "${PACKAGE}" "${REQUIRED_REVISIONS[${PACKAGE}]}"
+        fi
+      done
+      [[ "${#REQUIRE_PACKAGES[@]}" -eq 0 ]] || {
+        if [[ -n "${DRY_RUN:-}" ]]; then
+          "${cmdExec[@]}" tlmgr install --dry-run --no-depends-at-all "${REQUIRE_PACKAGES[@]}"
+        else
+          "${cmdExec[@]}" tlmgr install --no-depends-at-all "${REQUIRE_PACKAGES[@]}"
+        fi
       }
-      REQUIRE_PACKAGES+=("${PACKAGE}")
-    done <<< "${REQUIRE_LIST}"
-    "${cmdExec[@]}" tlmgr install "${REQUIRE_PACKAGES[@]}"
+      if [[ -z "${DRY_RUN:-}" ]]; then
+        VERIFY_FILE="$(mktemp "${TEXENV_ROOT}/.texenv-restore-verify.XXXXXX")"
+        if ! "${cmdExec[@]}" tlmgr info --only-installed --data name,localrev | "${libs}" normalizePackageRevisions > "${VERIFY_FILE}"; then
+          builtin echo "${SCRIPT_NAME%%-*}: failed to verify restored TeX packages" >&2
+          exit 1
+        fi
+        for PACKAGE in "${!REQUIRED_REVISIONS[@]}"; do
+          INSTALLED_REVISION="$(awk -F '\t' -v package="${PACKAGE}" '$1 == package {print $2; exit}' "${VERIFY_FILE}")"
+          [[ "${INSTALLED_REVISION}" == "${REQUIRED_REVISIONS[${PACKAGE}]}" ]] || {
+            builtin echo "${SCRIPT_NAME%%-*}: restored package revision does not match lock file: ${PACKAGE}" >&2
+            exit 1
+          }
+        done
+        rm -f "${VERIFY_FILE}"
+      fi
+    elif [[ -n "${DRY_RUN:-}" ]]; then
+      "${cmdExec[@]}" tlmgr install --dry-run "${REQUIRE_PACKAGES[@]}"
+    else
+      "${cmdExec[@]}" tlmgr install "${REQUIRE_PACKAGES[@]}"
+    fi
   } || {
     builtin echo "${SCRIPT_NAME%%-*}: failed to restore TeX packages" >&2
     exit 1

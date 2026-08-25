@@ -55,6 +55,7 @@ fi
 
 declare -r TEXENV_VERSION="${TEXENV_VERSION:-}"
 declare -r TEXENV_DIR="${TEXENV_DIR:-"${PWD}"}"
+declare -r TEXENV_CACHE_DIR="${TEXENV_DIR}/.texenv/cache"
 declare -r TEXENV_ROOT="${TEXENV_ROOT:-"${HOME}/.texenv"}"
 declare -r TEXENV_VERSIONS="${TEXENV_ROOT}/versions"
 declare -r TEXENV_CONFIG="${TEXENV_ROOT}/config"
@@ -72,6 +73,7 @@ export OS_NAME
 export ARCH
 export TEXENV_VERSION
 export TEXENV_DIR
+export TEXENV_CACHE_DIR
 export TEXENV_PLATFORM
 export TINYTEX_ARCHIVE_EXT
 export TEXENV_ROOT

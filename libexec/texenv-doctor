@@ -1,0 +1,233 @@
+#!/usr/bin/env bash
+
+declare -r TEXENV_DEBUG
+[[ "${TEXENV_DEBUG}" == 1 ]] && set -x
+set -euo pipefail
+
+# Read-only TeX environment diagnostics.
+cmdDoctor() {
+  declare SCRIPT_NAME
+  declare libs
+  declare cmdHelp
+  declare VERSION
+  declare ACTIVE_BIN
+  declare SNAPSHOT_FILE
+  declare INSTALLED_RAW
+  declare INSTALLED
+  declare REQUIREMENTS
+  declare MISSING_COUNT
+  declare COMMAND_PATH
+  declare SHIM_PATH
+  declare STALE_CACHE
+  declare BROKEN_SHIMS
+  declare PERL_PATH
+  declare FAILURES=0
+  declare -A TEX_VERSION_INFO
+  SCRIPT_NAME="${0##*/}"
+  libs="$(builtin type -P "texenv-libs" || true)"
+  cmdHelp="$(builtin type -P "texenv-help" || true)"
+  [[ -z "${libs}" || -z "${cmdHelp}" ]] && {
+    builtin echo "${SCRIPT_NAME%%-*}: required component(s) missing" >&2
+    exit 1
+  }
+  case "${1:-}" in
+    -h | --help)
+      builtin exec "${cmdHelp}" "${SCRIPT_NAME##*-}"
+      ;;
+    "")
+      ;;
+    *)
+      builtin echo "${SCRIPT_NAME%%-*}: unknown option '${1}'" >&2
+      exit 1
+      ;;
+  esac
+
+  report() {
+    declare LEVEL="${1}"
+    shift
+    builtin printf '[%s] %s\n' "${LEVEL}" "${*}"
+    if [[ "${LEVEL}" == FAIL ]]; then
+      FAILURES=$((FAILURES + 1))
+    fi
+    return 0
+  }
+
+  checkCommand() {
+    declare COMMAND_NAME="${1}"
+    if builtin type -P "${COMMAND_NAME}" > /dev/null 2>&1; then
+      report OK "command: ${COMMAND_NAME}"
+    else
+      report FAIL "command: ${COMMAND_NAME} is not available"
+    fi
+  }
+
+  checkDirectory() {
+    declare LABEL="${1}"
+    declare DIRECTORY="${2}"
+    if [[ -d "${DIRECTORY}" && -r "${DIRECTORY}" && -x "${DIRECTORY}" && -w "${DIRECTORY}" ]]; then
+      report OK "${LABEL}: ${DIRECTORY}"
+    else
+      report FAIL "${LABEL}: ${DIRECTORY} is missing or not writable"
+    fi
+  }
+
+  pathContains() {
+    declare NEEDLE="${1}"
+    declare ENTRY
+    declare -a PATH_ENTRIES
+    IFS=: read -r -a PATH_ENTRIES <<< "${PATH:-}"
+    for ENTRY in "${PATH_ENTRIES[@]}"; do
+      [[ "${ENTRY}" == "${NEEDLE}" ]] && return 0
+    done
+    return 1
+  }
+
+  if ((BASH_VERSINFO[0] >= 4)); then
+    report OK "Bash ${BASH_VERSION}"
+  else
+    report FAIL "Bash 4 or newer is required"
+  fi
+  for COMMAND_NAME in bash awk find grep sort mktemp; do
+    checkCommand "${COMMAND_NAME}"
+  done
+
+  checkDirectory TEXENV_ROOT "${TEXENV_ROOT}"
+  checkDirectory TEXENV_VERSIONS "${TEXENV_VERSIONS}"
+  checkDirectory TEXENV_CONFIG "${TEXENV_CONFIG}"
+  checkDirectory TEXENV_BIN "${TEXENV_BIN}"
+  checkDirectory TEXENV_SHIMS "${TEXENV_SHIMS}"
+  checkDirectory TEXENV_HOOKS "${TEXENV_HOOKS}"
+  checkDirectory TEXMF_HOME "${TEXMF_HOME}"
+
+  for DIRECTORY in "${TEXENV_BIN}" "${TEXENV_SHIMS}"; do
+    if pathContains "${DIRECTORY}"; then
+      report OK "PATH contains ${DIRECTORY}"
+    else
+      report WARN "PATH does not contain ${DIRECTORY}"
+    fi
+  done
+
+  while IFS=': ' read -r KEY VALUE; do
+    [[ -n "${KEY}" && -n "${VALUE}" ]] && TEX_VERSION_INFO["${KEY}"]="${VALUE}"
+  done < <("${libs}" resolveVersion || true)
+  VERSION="${TEX_VERSION_INFO["TinyTeX-Version"]:-}"
+  ACTIVE_BIN=""
+  if [[ -z "${VERSION}" ]]; then
+    report FAIL 'active version: not set'
+  elif [[ -d "${TEXENV_VERSIONS}/${VERSION}/bin/${TEXENV_PLATFORM}" ]]; then
+    ACTIVE_BIN="${TEXENV_VERSIONS}/${VERSION}/bin/${TEXENV_PLATFORM}"
+    report OK "active version: ${VERSION}"
+  else
+    report FAIL "active version: ${VERSION} binary directory is missing"
+  fi
+
+  PERL_PATH="$(builtin type -P perl || true)"
+  if [[ -n "${PERL_PATH}" ]] && "${PERL_PATH}" -mFile::Find /dev/null > /dev/null 2>&1; then
+    report OK 'Perl: File::Find'
+  else
+    report FAIL 'Perl: File::Find is unavailable'
+  fi
+
+  if [[ -n "${ACTIVE_BIN}" ]]; then
+    for COMMAND_NAME in tlmgr kpsewhich pdftex; do
+      if [[ -x "${ACTIVE_BIN}/${COMMAND_NAME}" ]]; then
+        report OK "TeX command: ${COMMAND_NAME}"
+      else
+        report FAIL "TeX command: ${COMMAND_NAME} is missing"
+      fi
+    done
+    if "${libs}" executeRun tlmgr check all > /dev/null 2>&1; then
+      report OK 'tlmgr check all'
+    else
+      report FAIL 'tlmgr check all'
+    fi
+  fi
+
+  STALE_CACHE=0
+  if [[ -f "${TEX_CMD_LIST_CACHE}" ]]; then
+    while IFS= read -r COMMAND_PATH; do
+      [[ -z "${COMMAND_PATH}" || -x "${COMMAND_PATH}" ]] || {
+        STALE_CACHE=1
+        break
+      }
+    done < "${TEX_CMD_LIST_CACHE}"
+    if ((STALE_CACHE == 0)); then
+      report OK 'command cache'
+    else
+      report WARN 'command cache contains stale entries'
+    fi
+  else
+    report WARN 'command cache is missing'
+  fi
+
+  BROKEN_SHIMS=0
+  while IFS= read -r SHIM_PATH; do
+    [[ -e "${SHIM_PATH}" ]] || {
+      BROKEN_SHIMS=1
+      break
+    }
+  done < <(find "${TEXENV_SHIMS}" -maxdepth 1 -type l)
+  if ((BROKEN_SHIMS == 0)); then
+    report OK 'shims'
+  else
+    report WARN 'shims contain broken links'
+  fi
+
+  if [[ -f "${TEXENV_DIR}/${TEX_REQUIREMENTS_LOCK_FILE}" ]]; then
+    SNAPSHOT_FILE="${TEXENV_DIR}/${TEX_REQUIREMENTS_LOCK_FILE}"
+  elif [[ -f "${TEXENV_DIR}/${TEX_REQUIREMENTS_FILE}" ]]; then
+    SNAPSHOT_FILE="${TEXENV_DIR}/${TEX_REQUIREMENTS_FILE}"
+  else
+    SNAPSHOT_FILE=""
+  fi
+  if [[ -z "${SNAPSHOT_FILE}" ]]; then
+    report OK 'requirements: no snapshot'
+  elif [[ -z "${ACTIVE_BIN}" ]]; then
+    report WARN 'requirements: skipped without an active version'
+  elif ! INSTALLED_RAW="$("${libs}" executeRun tlmgr info --only-installed --data name 2> /dev/null)"; then
+    report FAIL 'requirements: unable to query installed packages'
+  elif ! INSTALLED="$(printf '%s\n' "${INSTALLED_RAW}" | "${libs}" normalizePackageNames)"; then
+    report FAIL 'requirements: unable to normalize installed packages'
+  elif [[ "${SNAPSHOT_FILE}" == "${TEXENV_DIR}/${TEX_REQUIREMENTS_LOCK_FILE}" ]]; then
+    declare SNAPSHOT_STATUS=0
+    if [[ "$(awk 'NR == 1 {print; exit}' "${SNAPSHOT_FILE}")" == '# texenv-lock: 2' ]]; then
+      REQUIREMENTS="$(awk -F '\t' 'NR > 1 && $0 !~ /^#/ && NF >= 2 {print $1}' "${SNAPSHOT_FILE}" | "${libs}" normalizePackageNames)" || SNAPSHOT_STATUS=1
+    else
+      REQUIREMENTS="$(awk 'NR > 1 && $0 !~ /^#/ {print}' "${SNAPSHOT_FILE}" | "${libs}" normalizePackageNames)" || SNAPSHOT_STATUS=1
+    fi
+    if ((SNAPSHOT_STATUS)); then
+      report FAIL 'requirements: unable to read snapshot'
+    else
+      MISSING_COUNT="$(awk '
+        NR == FNR { installed[$0] = 1; next }
+        $0 != "" && !installed[$0] && !seen[$0]++ { count++ }
+        END { print count + 0 }
+      ' <(printf '%s\n' "${INSTALLED}") <(printf '%s\n' "${REQUIREMENTS}"))"
+      if ((MISSING_COUNT == 0)); then
+        report OK 'requirements: in sync'
+      else
+        report WARN "requirements: ${MISSING_COUNT} package(s) missing"
+      fi
+    fi
+  elif ! REQUIREMENTS="$("${libs}" normalizePackageNames < "${SNAPSHOT_FILE}")"; then
+    report FAIL 'requirements: unable to read snapshot'
+  else
+    MISSING_COUNT="$(awk '
+      NR == FNR { installed[$0] = 1; next }
+      $0 != "" && !installed[$0] && !seen[$0]++ { count++ }
+      END { print count + 0 }
+    ' <(printf '%s\n' "${INSTALLED}") <(printf '%s\n' "${REQUIREMENTS}"))"
+    if ((MISSING_COUNT == 0)); then
+      report OK 'requirements: in sync'
+    else
+      report WARN "requirements: ${MISSING_COUNT} package(s) missing"
+    fi
+  fi
+
+  if ((FAILURES > 0)); then
+    return 1
+  fi
+  return 0
+}
+
+cmdDoctor "${@}"
