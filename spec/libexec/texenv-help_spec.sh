@@ -22,7 +22,28 @@ Describe 'texenv-help'
   It 'lists commands without dynamic function evaluation'
     When call invoke_help
     The output should include 'commands [options]'
+    The output should include 'doctor [options]'
+    The output should include 'Diagnose the TeX environment'
     The output should include 'help'
+  End
+
+  It 'describes doctor checks'
+    When call invoke_help doctor
+    The output should include 'Read-only checks include:'
+    The output should include 'Perl and File::Find for tlmgr'
+    The output should include 'package snapshot status'
+  End
+
+  It 'describes lock and archive options'
+    When call invoke_help freeze
+    The output should include 'tex-require.lock'
+    The output should include 'SHA-512 checksums'
+  End
+
+  It 'describes restore validation options'
+    When call invoke_help restore
+    The output should include 'platform, repository, and package revisions'
+    The output should include '--dry-run reports and validates'
   End
 
   It 'emits shell help that remains valid shell source'
